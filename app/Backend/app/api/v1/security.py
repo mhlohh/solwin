@@ -1,9 +1,14 @@
+import math
 import uuid
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import String, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.models.threat import Threat
+from app.schemas.pagination import PaginatedResponse
 from app.schemas.threat import (
     ConversationSecurityResponse,
     SecurityAnalysisRequest,
@@ -17,6 +22,85 @@ router = APIRouter(
     prefix="/security",
     tags=["Security Intelligence"],
 )
+
+
+@router.get(
+    "/threats",
+    response_model=PaginatedResponse[ThreatRead],
+    status_code=status.HTTP_200_OK,
+    summary="List persisted threat records",
+    description=(
+        "Retrieve a paginated list of persisted threat records with optional "
+        "filtering by risk level and threat detection flag, plus text search "
+        "across threat type and risk reasons."
+    ),
+)
+def list_threats(
+    page: int = Query(1, ge=1, description="Page number starting at 1"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page (max 100)"),
+    risk_level: Optional[str] = Query(None, description="Filter by risk level"),
+    threat_detected: Optional[bool] = Query(
+        None, description="Filter by confirmed threat flag"
+    ),
+    search: Optional[str] = Query(
+        None, description="Search across threat type and risk reasons"
+    ),
+    db: Session = Depends(get_db),
+):
+    query = select(Threat)
+
+    if risk_level:
+        query = query.where(Threat.risk_level == risk_level)
+    if threat_detected is not None:
+        query = query.where(Threat.threat_detected == threat_detected)
+    if search and search.strip():
+        term = f"%{search.strip()}%"
+        query = query.where(
+            or_(
+                Threat.threat_type.ilike(term),
+                Threat.risk_reasons.cast(String).ilike(term),
+            )
+        )
+
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    total_pages = math.ceil(total / page_size) if total > 0 else 0
+
+    offset = (page - 1) * page_size
+    items = list(
+        db.scalars(
+            query.order_by(Threat.created_at.desc())
+            .offset(offset)
+            .limit(page_size)
+        ).all()
+    )
+
+    return PaginatedResponse[ThreatRead](
+        items=[ThreatRead.model_validate(t) for t in items],
+        page=page,
+        page_size=page_size,
+        total=int(total),
+        total_pages=total_pages,
+    )
+
+
+@router.get(
+    "/threats/{threat_id}",
+    response_model=ThreatRead,
+    status_code=status.HTTP_200_OK,
+    summary="Get threat record by id",
+    description="Retrieve a single persisted threat record by its identifier.",
+)
+def get_threat(
+    threat_id: uuid.UUID,
+    db: Session = Depends(get_db),
+):
+    threat = db.scalar(select(Threat).where(Threat.id == threat_id))
+    if not threat:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Threat '{threat_id}' not found.",
+        )
+    return ThreatRead.model_validate(threat)
 
 
 @router.post(

@@ -1,25 +1,12 @@
-import { api, isNetworkOrOfflineError } from './api';
-import { AuthCredentials, AuthResponse, User } from '../types/auth';
-import { mockUser } from './mockData';
+import { api, getApiErrorMessage } from './api';
+import { TokenResponse, User } from '../types/conversation';
 
-export async function login(credentials: AuthCredentials): Promise<AuthResponse> {
+export async function login(email: string, password: string): Promise<TokenResponse> {
   try {
-    const response = await api.post<AuthResponse>('/auth/login', credentials);
+    const response = await api.post<TokenResponse>('/auth/login', { email, password });
     return response.data;
   } catch (err) {
-    if (isNetworkOrOfflineError(err)) {
-      console.warn('[SOLWIN API] Backend offline, simulating login with mock analyst session');
-      // Simulate successful login with mock credentials if backend is down
-      const mockResponse: AuthResponse = {
-        token: 'mock_jwt_token_' + Date.now(),
-        user: {
-          ...mockUser,
-          email: credentials.email || mockUser.email,
-        },
-      };
-      return mockResponse;
-    }
-    throw err;
+    throw new Error(getApiErrorMessage(err, 'Invalid email or password.'));
   }
 }
 
@@ -28,18 +15,7 @@ export async function getCurrentUser(): Promise<User> {
     const response = await api.get<User>('/auth/me');
     return response.data;
   } catch (err) {
-    if (isNetworkOrOfflineError(err)) {
-      const stored = localStorage.getItem('solwin_auth_user');
-      if (stored) {
-        try {
-          return JSON.parse(stored);
-        } catch {
-          // parse error
-        }
-      }
-      return mockUser;
-    }
-    throw err;
+    throw new Error(getApiErrorMessage(err, 'Failed to load current user.'));
   }
 }
 

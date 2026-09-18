@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { API_BASE_URL } from '../services/api';
-import { Settings as SettingsIcon, Server, Shield, Check, RefreshCw, Key, Lock, Cpu, Sun, Moon, Palette } from 'lucide-react';
+import { Settings as SettingsIcon, Server, Shield, Check, Sun, Moon, Palette } from 'lucide-react';
 
 export const Settings: React.FC = () => {
-  const { user } = useAuth();
   const { theme, setTheme } = useTheme();
   const [apiUrl, setApiUrl] = useState(API_BASE_URL);
   const [saved, setSaved] = useState(false);
@@ -30,7 +28,7 @@ export const Settings: React.FC = () => {
           <span>Platform Configuration & Gateway Settings</span>
         </h1>
         <p className="text-xs text-slate-400 mt-1">
-          Manage REST API integration endpoints, display themes, analyst session authentication, and diagnostic telemetry
+          Manage REST API integration endpoints, display themes, and diagnostic telemetry.
         </p>
       </div>
 
@@ -121,7 +119,7 @@ export const Settings: React.FC = () => {
               className="w-full px-3.5 py-2.5 rounded-xl bg-surface-elevated border border-surface-border text-xs font-mono text-white focus:outline-none focus:border-brand-cyan focus:ring-1 focus:ring-brand-cyan/40 shadow-sm"
             />
             <span className="text-[11px] text-slate-500 font-mono mt-1.5 block">
-              Default: http://localhost:8000/api/v1
+              Default: http://localhost:8001/api/v1
             </span>
           </div>
 
@@ -141,34 +139,34 @@ export const Settings: React.FC = () => {
         </form>
       </div>
 
-      {/* Analyst Profile Information */}
+      {/* Gateway Diagnostics */}
       <div className="p-6 rounded-2xl bg-surface-card border border-surface-border shadow-card space-y-4">
         <div className="flex items-center gap-2 text-white">
           <Shield size={18} className="text-brand-cyan" />
           <h2 className="text-xs font-mono font-bold uppercase tracking-wider text-slate-100">
-            Operator Session Security Profile
+            Connection Diagnostics
           </h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
           <div className="p-4 rounded-xl bg-surface-elevated/70 border border-surface-border">
-            <span className="text-[10px] font-mono text-slate-500 block mb-1">Operator Identity</span>
-            <span className="font-semibold text-slate-100">{user?.name}</span>
+            <span className="text-[10px] font-mono text-slate-500 block mb-1">Gateway Base URL</span>
+            <span className="font-mono text-brand-cyan">{API_BASE_URL}</span>
           </div>
 
           <div className="p-4 rounded-xl bg-surface-elevated/70 border border-surface-border">
-            <span className="text-[10px] font-mono text-slate-500 block mb-1">Authorized Email</span>
-            <span className="font-mono text-brand-cyan">{user?.email}</span>
+            <span className="text-[10px] font-mono text-slate-500 block mb-1">Transport</span>
+            <span className="font-mono text-slate-300">REST / JSON</span>
           </div>
 
           <div className="p-4 rounded-xl bg-surface-elevated/70 border border-surface-border">
-            <span className="text-[10px] font-mono text-slate-500 block mb-1">Assigned RBAC Role</span>
-            <span className="font-mono text-emerald-400 uppercase font-bold">{user?.role}</span>
+            <span className="text-[10px] font-mono text-slate-500 block mb-1">Intelligence Source</span>
+            <span className="font-mono text-emerald-400 uppercase font-bold">Backend + ML Pipeline</span>
           </div>
 
           <div className="p-4 rounded-xl bg-surface-elevated/70 border border-surface-border">
-            <span className="text-[10px] font-mono text-slate-500 block mb-1">Session Protocol</span>
-            <span className="font-mono text-slate-300">JWT Bearer Interceptor Active</span>
+            <span className="text-[10px] font-mono text-slate-500 block mb-1">Access Mode</span>
+            <span className="font-mono text-slate-300">Public (no authentication)</span>
           </div>
         </div>
       </div>

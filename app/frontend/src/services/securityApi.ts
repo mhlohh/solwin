@@ -1,98 +1,81 @@
-import { api, isNetworkOrOfflineError } from './api';
-import { ThreatRecord, ThreatFilterParams, SecurityIntelligence } from '../types/security';
-import { mockThreats, mockSecurityIntelligence } from './mockData';
-import { PaginatedResponse } from '../types/conversation';
+import { api, getApiErrorMessage } from './api';
+import {
+  PaginatedResponse,
+  SecurityIntelligence,
+  Threat,
+  ThreatFilterParams,
+} from '../types/conversation';
 
+/** Paginated directory of persisted threat records. */
 export async function getThreats(
   params?: ThreatFilterParams
-): Promise<PaginatedResponse<ThreatRecord>> {
+): Promise<PaginatedResponse<Threat>> {
   try {
-    const response = await api.get<PaginatedResponse<ThreatRecord>>('/security/threats', { params });
+    const response = await api.get<PaginatedResponse<Threat>>('/security/threats', {
+      params,
+    });
     return response.data;
   } catch (err) {
-    if (isNetworkOrOfflineError(err)) {
-      let filtered = [...mockThreats];
-
-      if (params?.risk_level) {
-        filtered = filtered.filter((t) => t.risk_level === params.risk_level);
-      }
-      if (params?.threat_type) {
-        filtered = filtered.filter((t) => t.threat_type === params.threat_type);
-      }
-      if (params?.status) {
-        filtered = filtered.filter((t) => t.status === params.status);
-      }
-      if (params?.channel) {
-        filtered = filtered.filter((t) => t.channel === params.channel);
-      }
-
-      return {
-        data: filtered,
-        total: filtered.length,
-        page: params?.page || 1,
-        limit: params?.limit || 10,
-        total_pages: Math.max(1, Math.ceil(filtered.length / (params?.limit || 10))),
-      };
-    }
-    throw err;
+    throw new Error(getApiErrorMessage(err, 'Failed to load threats.'));
   }
 }
 
-export async function getThreat(id: string): Promise<ThreatRecord> {
+/** Fetch a single persisted threat record by id. */
+export async function getThreat(id: string): Promise<Threat> {
   try {
-    const response = await api.get<ThreatRecord>(`/security/threats/${id}`);
+    const response = await api.get<Threat>(`/security/threats/${id}`);
     return response.data;
   } catch (err) {
-    if (isNetworkOrOfflineError(err)) {
-      const found = mockThreats.find((t) => t.id === id);
-      if (found) return found;
-      return {
-        ...mockThreats[0],
-        id,
-      };
-    }
-    throw err;
+    throw new Error(getApiErrorMessage(err, 'Failed to load threat details.'));
   }
 }
 
+/** Fetch latest persisted security analysis for a conversation. */
 export async function getSecurityIntelligenceForConversation(
   conversationId: string
 ): Promise<SecurityIntelligence> {
   try {
-    const response = await api.get<any>(`/security/conversation/${conversationId}`);
-    const threat = response.data?.threat || response.data;
+    const response = await api.get<{ threat: Threat } | Threat>(
+      `/security/conversation/${conversationId}`
+    );
+    const data = response.data as any;
+    const threat: Threat | undefined = data.threat || data;
+    if (!threat) {
+      return emptyIntelligence();
+    }
     return {
-      threat_detected: threat.threat_detected,
-      threat_type: threat.threat_type,
-      risk_level: threat.risk_level || 'LOW',
-      social_engineering: threat.social_engineering_detected,
+      threat_detected: Boolean(threat.threat_detected),
+      threat_type: threat.threat_type || 'NONE',
+      suspicious_urls: threat.suspicious_urls || [],
+      suspicious_emails: threat.suspicious_emails || [],
+      social_engineering_detected: Boolean(threat.social_engineering_detected),
       techniques: threat.techniques || [],
-      suspicious_urls: (threat.suspicious_urls || []).map((u: any) =>
-        typeof u === 'string' ? { url: u, domain: u, https: u.startsWith('https') } : u
-      ),
-      suspicious_emails: (threat.suspicious_emails || []).map((e: any) =>
-        typeof e === 'string' ? { sender: e, display_name: '', email_domain: '', expected_domain: '', domain_match: false, lookalike_domain: false, impersonation: false, risk: 'HIGH' } : e
-      ),
-      recommended_action: threat.recommended_action,
+      risk_level: threat.risk_level || 'LOW',
+      risk_reasons: threat.risk_reasons || [],
     };
   } catch (err) {
-    if (isNetworkOrOfflineError(err)) {
-      return (
-        mockSecurityIntelligence[conversationId] || {
-          threat_detected: false,
-          risk_level: 'LOW',
-          techniques: [],
-          suspicious_urls: [],
-          suspicious_emails: [],
-          recommended_action: 'Standard support resolution path. No active threat indicators detected.',
-        }
-      );
+    // A 404 here simply means no analysis has been persisted yet.
+    if (
+      err &&
+      typeof err === 'object' &&
+      'response' in err &&
+      (err as any).response?.status === 404
+    ) {
+      return emptyIntelligence();
     }
-    throw err;
+    throw new Error(getApiErrorMessage(err, 'Failed to load security intelligence.'));
   }
 }
 
-export async function analyzeSecurity(data: unknown): Promise<SecurityIntelligence> {
-  const response = await api.post<SecurityIntelligence>('/security/analyze', data);
-  return response.data;
+function emptyIntelligence(): SecurityIntelligence {
+  return {
+    threat_detected: false,
+    threat_type: 'NONE',
+    suspicious_urls: [],
+    suspicious_emails: [],
+    social_engineering_detected: false,
+    techniques: [],
+    risk_level: 'LOW',
+    risk_reasons: [],
+  };
 }

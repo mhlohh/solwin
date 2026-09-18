@@ -1,6 +1,6 @@
 from app.services.analytics_service import AnalyticsService
-from app.services.auth_service import AuthService
 from app.services.conversation_service import ConversationService
+from app.services.customer_review_service import CustomerReviewService
 from app.services.unified_intelligence import (
     UnifiedIntelligenceError,
     UnifiedIntelligenceService,
@@ -8,8 +8,8 @@ from app.services.unified_intelligence import (
 
 __all__ = [
     "AnalyticsService",
-    "AuthService",
     "ConversationService",
+    "CustomerReviewService",
     "UnifiedIntelligenceError",
     "UnifiedIntelligenceService",
 ]

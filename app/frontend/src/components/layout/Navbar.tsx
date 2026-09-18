@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, Bell, LogOut, Menu, UserCircle, Activity, Sparkles, Terminal, AlertTriangle, CheckCircle2, Sun, Moon } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { Shield, Bell, Menu, Activity, AlertTriangle, Sun, Moon } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { SearchBar } from '../common/SearchBar';
 
@@ -10,20 +9,14 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
-  const { user, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
-  const [showUserMenu, setShowUserMenu] = useState(false);
   const [defconLevel, setDefconLevel] = useState<'NORMAL' | 'ELEVATED' | 'CRITICAL'>('NORMAL');
   const [showAlertsPopover, setShowAlertsPopover] = useState(false);
 
   const handleGlobalSearch = (query: string) => {
     if (!query.trim()) return;
-    if (query.toUpperCase().startsWith('THR-')) {
-      navigate(`/threats?search=${encodeURIComponent(query)}`);
-    } else {
-      navigate(`/conversations?search=${encodeURIComponent(query)}`);
-    }
+    navigate(`/conversations?search=${encodeURIComponent(query)}`);
   };
 
   const cycleDefcon = () => {
@@ -69,7 +62,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
       <div className="flex-1 max-w-lg mx-6 hidden md:block">
         <div className="relative group">
           <SearchBar
-            placeholder="Search tickets, threat vectors, IOC domains, customer hashes..."
+            placeholder="Search tickets, threat vectors, IOC domains..."
             onChange={handleGlobalSearch}
             className="w-full"
           />
@@ -134,21 +127,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
                 </span>
                 <span className="text-[10px] font-mono text-slate-500">Live feed</span>
               </div>
-              <div className="space-y-2 text-xs">
-                <div
-                  onClick={() => {
-                    setShowAlertsPopover(false);
-                    navigate('/threats/THR-9021');
-                  }}
-                  className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 hover:border-rose-500/45 cursor-pointer transition-all space-y-1"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-mono text-rose-500 font-bold text-[11px]">THR-9021</span>
-                    <span className="text-[10px] text-rose-400 font-mono">2 min ago</span>
-                  </div>
-                  <p className="text-xs">Spear-phishing & 2FA harvesting on cloud-login.net</p>
-                </div>
-              </div>
               <button
                 onClick={() => {
                   setShowAlertsPopover(false);
@@ -157,62 +135,6 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
                 className="w-full py-1.5 rounded-lg bg-surface-elevated hover:bg-slate-800 text-xs font-mono text-center block transition-colors border border-surface-border"
               >
                 View all active threats →
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* User Profile */}
-        <div className="relative">
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-surface-elevated border border-surface-border transition-colors"
-          >
-            {user?.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt={user.name}
-                className="w-7 h-7 rounded-lg object-cover border border-surface-border"
-              />
-            ) : (
-              <div className="w-7 h-7 rounded-lg bg-cyan-500/10 flex items-center justify-center text-brand-cyan border border-cyan-500/30 font-mono font-bold text-xs">
-                {user?.name ? user.name[0].toUpperCase() : 'A'}
-              </div>
-            )}
-            <div className="hidden lg:block text-left text-xs pr-1">
-              <div className="font-semibold leading-tight">{user?.name || 'Lead Analyst'}</div>
-              <div className="text-[10px] text-slate-500 font-mono capitalize">
-                {user?.role ? user.role.replace('_', ' ') : 'SecOps Tier-3'}
-              </div>
-            </div>
-          </button>
-
-          {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-56 bg-surface-card border border-surface-border rounded-2xl shadow-dropdown py-2 z-50 animate-in fade-in">
-              <div className="px-3.5 py-2 border-b border-surface-border">
-                <p className="text-xs font-semibold">{user?.name}</p>
-                <p className="text-[11px] text-slate-500 truncate font-mono mt-0.5">{user?.email}</p>
-              </div>
-              <button
-                onClick={() => {
-                  setShowUserMenu(false);
-                  navigate('/settings');
-                }}
-                className="w-full text-left px-3.5 py-2 text-xs hover:bg-surface-elevated transition-colors flex items-center justify-between"
-              >
-                <span>Platform Settings</span>
-                <span className="text-[10px] font-mono text-slate-500">API config</span>
-              </button>
-              <button
-                onClick={() => {
-                  setShowUserMenu(false);
-                  logout();
-                  navigate('/login');
-                }}
-                className="w-full text-left px-3.5 py-2 text-xs text-rose-500 hover:bg-rose-500/10 flex items-center gap-2 transition-colors border-t border-surface-border mt-1"
-              >
-                <LogOut size={13} />
-                <span>Terminate Session</span>
               </button>
             </div>
           )}

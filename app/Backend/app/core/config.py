@@ -23,9 +23,6 @@ class Settings(BaseSettings):
     # External APIs & Security
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
-    JWT_SECRET_KEY: str = "default-development-secret-key-change-in-prod"
-    JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     ML_SERVICE_URL: str = "http://localhost:8000"
 
     # Attachments & Storage

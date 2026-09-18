@@ -23,18 +23,30 @@ class AttachmentResponse(AttachmentBase):
 # --- Ticket Schemas ---
 class TicketBase(BaseModel):
     message: str
+    domain: Optional[str] = ""
+    channel: Optional[str] = ""
     subject: Optional[str] = ""
     intent: Optional[str] = ""
     issue: Optional[str] = ""
+    technique: Optional[str] = ""
+    phishing: Optional[bool] = None
+    sender: Optional[str] = ""
+    label: Optional[str] = ""
 
 class TicketCreate(TicketBase):
     pass
 
 class TicketUpdate(BaseModel):
     message: Optional[str] = None
+    domain: Optional[str] = None
+    channel: Optional[str] = None
     subject: Optional[str] = None
     intent: Optional[str] = None
     issue: Optional[str] = None
+    technique: Optional[str] = None
+    phishing: Optional[bool] = None
+    sender: Optional[str] = None
+    label: Optional[str] = None
 
 class TicketResponse(TicketBase):
     id: int

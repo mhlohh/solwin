@@ -54,7 +54,6 @@ def clean_csv_data(file_path: Optional[str] = None) -> pd.DataFrame:
     if not file_path:
         data_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         possible_paths = [
-            os.path.join(data_dir, "unified_customer_phishing_data (1).csv"),
             os.path.join(data_dir, "unified_customer_phishing_data.csv"),
             os.path.join(data_dir, "unified_customer_phishing_data_subset.csv"),
             os.path.join(data_dir, "unified_customer_phishing_data_subset (1).csv"),

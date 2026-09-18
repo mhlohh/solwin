@@ -1,32 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getThreat } from '../services/securityApi';
-import { ThreatRecord } from '../types/security';
+import { Threat } from '../types/conversation';
 import { RiskBadge } from '../components/common/RiskBadge';
-import { UrlAnalysisCard } from '../components/security/UrlAnalysisCard';
-import { EmailAnalysisCard } from '../components/security/EmailAnalysisCard';
 import { ErrorState } from '../components/common/ErrorState';
 import {
   ChevronLeft,
   ShieldAlert,
-  Clock,
-  User,
   MessageSquare,
   AlertOctagon,
   ExternalLink,
-  CheckCircle2,
-  Lock,
   Terminal,
 } from 'lucide-react';
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString();
+}
 
 export const ThreatDetails: React.FC = () => {
   const { id = '' } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
-  const [threat, setThreat] = useState<ThreatRecord | null>(null);
+  const [threat, setThreat] = useState<Threat | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [mitigationApplied, setMitigationApplied] = useState(false);
 
   const loadThreatDetails = async () => {
     setIsLoading(true);
@@ -43,9 +42,10 @@ export const ThreatDetails: React.FC = () => {
 
   useEffect(() => {
     loadThreatDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  if (error || (!isLoading && !threat)) {
+  if ((error && !isLoading && !threat) || (!isLoading && !threat)) {
     return (
       <ErrorState
         title="Threat Record Unavailable"
@@ -54,8 +54,6 @@ export const ThreatDetails: React.FC = () => {
       />
     );
   }
-
-  const intel = threat?.intelligence;
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
@@ -70,17 +68,18 @@ export const ThreatDetails: React.FC = () => {
           </button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-sm font-bold text-rose-400">{threat?.id}</span>
-              {threat && <RiskBadge level={threat.risk_level} />}
-              <span className="text-xs font-mono px-2 py-0.5 rounded bg-surface-elevated text-slate-300 border border-surface-border">
-                {threat?.status}
+              <span className="font-mono text-sm font-bold text-rose-400 flex items-center gap-1.5">
+                <Terminal size={14} />
+                {threat?.threat_type || 'UNCATEGORIZED'}
               </span>
+              {threat && <RiskBadge level={threat.risk_level || 'LOW'} />}
             </div>
-            <h1 className="text-lg font-bold text-white mt-1 font-sans">{threat?.threat_type}</h1>
+            <p className="text-xs font-mono text-slate-500 mt-1">
+              Record ID: {threat?.id || id}
+            </p>
           </div>
         </div>
 
-        {/* Action / Escalation Buttons */}
         <div className="flex items-center gap-2.5">
           {threat?.conversation_id && (
             <button
@@ -92,84 +91,58 @@ export const ThreatDetails: React.FC = () => {
               <ExternalLink size={12} />
             </button>
           )}
-
-          <button
-            onClick={() => setMitigationApplied(true)}
-            disabled={mitigationApplied}
-            className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold transition-all shadow-sm flex items-center gap-1.5 ${
-              mitigationApplied
-                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default shadow-glow-emerald/20'
-                : 'bg-rose-600 hover:bg-rose-500 text-white shadow-glow-rose font-bold'
-            }`}
-          >
-            {mitigationApplied ? (
-              <>
-                <CheckCircle2 size={14} />
-                <span>IOC Quarantined Globally</span>
-              </>
-            ) : (
-              <>
-                <Lock size={14} />
-                <span>Trigger Emergency EDR Block</span>
-              </>
-            )}
-          </button>
         </div>
       </div>
 
       {/* Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="p-5 rounded-2xl bg-surface-card border border-surface-border shadow-card">
-          <span className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Target Account</span>
-          <span className="text-sm font-semibold text-white">{threat?.customer_name}</span>
+          <span className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Threat Confirmed</span>
+          <span className={`text-sm font-semibold ${threat?.threat_detected ? 'text-rose-400' : 'text-emerald-400'}`}>
+            {threat?.threat_detected ? 'YES' : 'NO'}
+          </span>
         </div>
 
         <div className="p-5 rounded-2xl bg-surface-card border border-surface-border shadow-card">
-          <span className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Attack Channel</span>
-          <span className="text-sm font-semibold text-slate-200 uppercase font-mono">{threat?.channel}</span>
+          <span className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Social Engineering</span>
+          <span className={`text-sm font-semibold ${threat?.social_engineering_detected ? 'text-amber-400' : 'text-slate-400'}`}>
+            {threat?.social_engineering_detected ? 'CONFIRMED' : 'NONE'}
+          </span>
         </div>
 
         <div className="p-5 rounded-2xl bg-surface-card border border-surface-border shadow-card">
           <span className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Detection Time</span>
-          <span className="text-sm font-mono text-slate-300">{threat?.detected_at}</span>
-        </div>
-
-        <div className="p-5 rounded-2xl bg-surface-card border border-surface-border shadow-card">
-          <span className="text-[10px] font-mono text-slate-500 uppercase block mb-1">Risk Assessment</span>
-          <span className="text-sm font-mono font-bold text-rose-400">
-            {intel?.risk_score ? `${intel.risk_score}/100 SCORE` : threat?.risk_level}
+          <span className="text-sm font-mono text-slate-300">
+            {threat?.created_at ? formatTime(threat.created_at) : '—'}
           </span>
         </div>
       </div>
 
-      {/* Contributing Risk Breakdown */}
-      {intel?.contributing_factors && (
+      {/* Risk Engine Indicators */}
+      {threat?.risk_reasons && threat.risk_reasons.length > 0 && (
         <div className="p-6 rounded-2xl bg-surface-card border border-surface-border shadow-card space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-surface-border">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200">
-              Risk Engine Contributing Factors
-            </span>
-            <span className="text-xs font-mono text-rose-400 font-semibold">Cumulative Score: {intel.risk_score}</span>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-            {intel.contributing_factors.map((factor, i) => (
-              <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-surface-elevated/70 border border-surface-border text-xs">
-                <span className="text-slate-300">{factor.factor}</span>
-                <span className="font-mono font-bold text-rose-400">+{factor.score}</span>
-              </div>
+          <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200 block">
+            Risk Engine Indicators
+          </span>
+          <ul className="space-y-2 pt-1">
+            {threat.risk_reasons.map((reason, i) => (
+              <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
+                <span className="text-rose-400 mt-0.5">•</span>
+                <span>{reason}</span>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       )}
 
       {/* Social Engineering Tactics */}
-      {intel?.techniques && (
+      {threat?.techniques && threat.techniques.length > 0 && (
         <div className="p-6 rounded-2xl bg-surface-card border border-surface-border shadow-card space-y-3">
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-200 block">
-            Observed Social Engineering Tactics (MITRE)
+            Observed Social Engineering Tactics
           </span>
           <div className="flex flex-wrap gap-2">
-            {intel.techniques.map((t, i) => (
+            {threat.techniques.map((t, i) => (
               <span
                 key={i}
                 className="px-3 py-1 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/25 text-xs font-medium font-mono"
@@ -182,45 +155,67 @@ export const ThreatDetails: React.FC = () => {
       )}
 
       {/* Suspicious URLs */}
-      {intel?.suspicious_urls && intel.suspicious_urls.length > 0 && (
+      {threat?.suspicious_urls && threat.suspicious_urls.length > 0 && (
         <div className="space-y-3">
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300 block">
-            Suspicious Indicators: Malicious URLs ({intel.suspicious_urls.length})
+            Suspicious Indicators: Malicious URLs ({threat.suspicious_urls.length})
           </span>
-          <div className="space-y-3">
-            {intel.suspicious_urls.map((url, i) => (
-              <UrlAnalysisCard key={i} urlData={url} />
+          <div className="space-y-2">
+            {threat.suspicious_urls.map((url, i) => (
+              <div
+                key={i}
+                className="p-3.5 rounded-xl bg-surface-elevated/70 border border-surface-border font-mono text-xs text-rose-300 break-all"
+                title={url}
+              >
+                {url}
+              </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* Suspicious Email Indicators */}
-      {intel?.suspicious_emails && intel.suspicious_emails.length > 0 && (
+      {/* Suspicious Emails */}
+      {threat?.suspicious_emails && threat.suspicious_emails.length > 0 && (
         <div className="space-y-3">
           <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-300 block">
-            Suspicious Indicators: Email Headers & Domains ({intel.suspicious_emails.length})
+            Suspicious Indicators: Email Addresses ({threat.suspicious_emails.length})
           </span>
-          <div className="space-y-3">
-            {intel.suspicious_emails.map((em, i) => (
-              <EmailAnalysisCard key={i} emailData={em} />
+          <div className="space-y-2">
+            {threat.suspicious_emails.map((email, i) => (
+              <div
+                key={i}
+                className="p-3.5 rounded-xl bg-surface-elevated/70 border border-surface-border font-mono text-xs text-amber-300 break-all"
+                title={email}
+              >
+                {email}
+              </div>
             ))}
           </div>
         </div>
       )}
 
       {/* Recommended Action */}
-      {intel?.recommended_action && (
+      {threat?.recommended_action && (
         <div className="p-6 rounded-2xl bg-rose-500/10 border border-rose-500/30 space-y-2 shadow-glow-rose/15">
           <div className="flex items-center gap-2 text-rose-300 font-mono text-xs font-bold uppercase">
             <AlertOctagon size={16} />
             <span>Recommended Incident Mitigation Protocol</span>
           </div>
-          <p className="text-xs text-rose-100 leading-relaxed font-sans">
-            {intel.recommended_action}
-          </p>
+          <p className="text-xs text-rose-100 leading-relaxed font-sans">{threat.recommended_action}</p>
         </div>
       )}
+
+      {/* Empty fallback when record has no indicators */}
+      {threat &&
+        !threat.risk_reasons?.length &&
+        !threat.techniques?.length &&
+        !threat.suspicious_urls?.length &&
+        !threat.suspicious_emails?.length && (
+          <div className="p-8 rounded-2xl border border-surface-border bg-surface-card text-center text-xs font-mono text-slate-500">
+            <ShieldAlert size={20} className="mx-auto mb-2 text-slate-600" />
+            This threat record contains no stored indicators.
+          </div>
+        )}
     </div>
   );
 };

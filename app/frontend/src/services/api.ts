@@ -1,10 +1,11 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+export const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001/api/v1';
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 20000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -22,16 +23,13 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// Response interceptor: Handle 401, session expiry, network error
+// Response interceptor: Handle 401 session expiry
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
-      // Clear authentication
       localStorage.removeItem('solwin_auth_token');
       localStorage.removeItem('solwin_auth_user');
-      
-      // Dispatch event so React router or auth context redirects smoothly
       window.dispatchEvent(new CustomEvent('solwin:auth_expired'));
     }
     return Promise.reject(error);
@@ -48,4 +46,13 @@ export function isNetworkOrOfflineError(error: unknown): boolean {
     );
   }
   return false;
+}
+
+export function getApiErrorMessage(error: unknown, fallback: string): string {
+  if (axios.isAxiosError(error)) {
+    const detail = (error.response?.data as any)?.detail;
+    if (typeof detail === 'string' && detail) return detail;
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return fallback;
 }

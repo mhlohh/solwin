@@ -6,7 +6,6 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.database import get_db
-from app.main import app
 from app.models.analysis import Analysis
 from app.models.conversation import Conversation
 from app.models.enums import (
@@ -125,10 +124,8 @@ def test_customer_intelligence_invalid_output_json():
 # 3. API Integration Tests (Mocked DB & AI)
 # ==========================================
 from fastapi import FastAPI
+
 from app.api.v1.analysis import router as analysis_router
-from app.core.auth import get_current_active_user, get_current_user
-from app.models.enums import UserRole
-from app.models.user import User
 
 mock_api_app = FastAPI()
 mock_api_app.include_router(analysis_router, prefix="/api/v1")
@@ -142,20 +139,7 @@ def mock_db():
 
 @pytest.fixture
 def override_db(mock_db):
-    now = datetime.now(timezone.utc)
-    admin_user = User(
-        id=uuid.uuid4(),
-        email="testadmin@solwin.ai",
-        full_name="Test Admin",
-        hashed_password="mocked_password_hash",
-        role=UserRole.ADMIN,
-        is_active=True,
-        created_at=now,
-        updated_at=now,
-    )
     mock_api_app.dependency_overrides[get_db] = lambda: mock_db
-    mock_api_app.dependency_overrides[get_current_user] = lambda: admin_user
-    mock_api_app.dependency_overrides[get_current_active_user] = lambda: admin_user
     yield mock_db
     mock_api_app.dependency_overrides.clear()
 

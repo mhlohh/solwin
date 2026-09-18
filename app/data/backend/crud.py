@@ -32,9 +32,15 @@ def get_tickets(
 def create_ticket(db: Session, ticket: schemas.TicketCreate) -> models.Ticket:
     db_ticket = models.Ticket(
         message=ticket.message,
+        domain=ticket.domain or "",
+        channel=ticket.channel or "",
         subject=ticket.subject or "",
         intent=ticket.intent or "",
-        issue=ticket.issue or ""
+        issue=ticket.issue or "",
+        technique=ticket.technique or "",
+        phishing=ticket.phishing,
+        sender=ticket.sender or "",
+        label=ticket.label or ""
     )
     db.add(db_ticket)
     db.commit()

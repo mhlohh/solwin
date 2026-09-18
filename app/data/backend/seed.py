@@ -6,6 +6,16 @@ from .database import engine, SessionLocal, Base
 from .models import Ticket
 from .clean_data import clean_csv_data
 
+
+def _coerce_phishing(value) -> bool | None:
+    """Coerce dataset phishing flags ('True'/'False'/'1'/'0'/bool) to bool."""
+    if value is None or value == "":
+        return None
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in ("true", "1", "yes")
+
+
 def seed_database(db: Session, file_path: str = None, batch_size: int = 1000):
     """
     Populates the database with cleaned CSV data if the tickets table is empty.
@@ -28,9 +38,15 @@ def seed_database(db: Session, file_path: str = None, batch_size: int = 1000):
         ticket_objects = [
             Ticket(
                 message=r.get("message", ""),
+                domain=r.get("domain", ""),
+                channel=r.get("channel", ""),
                 subject=r.get("subject", ""),
                 intent=r.get("intent", ""),
-                issue=r.get("issue", "")
+                issue=r.get("issue", ""),
+                technique=r.get("technique", ""),
+                phishing=_coerce_phishing(r.get("phishing")),
+                sender=r.get("sender", ""),
+                label=r.get("label", "")
             )
             for r in batch
         ]
@@ -38,6 +54,7 @@ def seed_database(db: Session, file_path: str = None, batch_size: int = 1000):
         db.commit()
 
     print(f"Successfully seeded {total_records} ticket records.")
+
 
 def main():
     Base.metadata.create_all(bind=engine)

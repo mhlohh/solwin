@@ -4,42 +4,45 @@ import {
   MessageSquare,
   ShieldAlert,
   Clock,
-  ArrowRight,
-  ExternalLink,
-  Lock,
-  CheckCircle2,
-  AlertTriangle,
-  Globe,
-  Mail,
   ChevronRight,
-  Activity,
-  Zap,
-  ShieldCheck,
   Flame,
-  Terminal,
   RefreshCw,
 } from 'lucide-react';
 import { getDashboardOverview } from '../services/analyticsApi';
 import { getConversations } from '../services/conversationApi';
 import { getThreats } from '../services/securityApi';
-import { DashboardOverview } from '../types/analytics';
-import { Conversation } from '../types/conversation';
-import { ThreatRecord } from '../types/security';
+import { DashboardOverview, Conversation, Threat } from '../types/conversation';
 import { RiskBadge } from '../components/common/RiskBadge';
-import { PriorityBadge } from '../components/common/PriorityBadge';
 import { StatusBadge } from '../components/common/StatusBadge';
 import { KpiCard } from '../components/dashboard/KpiCard';
 import { CardSkeleton } from '../components/common/LoadingSkeleton';
 import { ErrorState } from '../components/common/ErrorState';
 
+const CHANNEL_LABELS: Record<string, string> = {
+  EMAIL: 'Email',
+  CHAT: 'Chat',
+  TICKET: 'Ticket',
+  SOCIAL_MEDIA: 'Social',
+  OTHER: 'Other',
+};
+
+function timeAgo(iso: string): string {
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '';
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hr ago`;
+  return `${Math.round(hours / 24)} d ago`;
+}
+
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardOverview | null>(null);
   const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
-  const [recentThreats, setRecentThreats] = useState<ThreatRecord[]>([]);
+  const [recentThreats, setRecentThreats] = useState<Threat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [quarantined, setQuarantined] = useState(false);
-  const [isSimulating, setIsSimulating] = useState(false);
   const navigate = useNavigate();
 
   const loadData = async () => {
@@ -48,12 +51,12 @@ export const Dashboard: React.FC = () => {
     try {
       const [overview, convRes, threatRes] = await Promise.all([
         getDashboardOverview(),
-        getConversations({ limit: 4 }),
-        getThreats({ limit: 4 }),
+        getConversations({ page: 1, page_size: 4 }),
+        getThreats({ page: 1, page_size: 4 }),
       ]);
       setData(overview);
-      setRecentConversations(convRes.data);
-      setRecentThreats(threatRes.data);
+      setRecentConversations(convRes.items);
+      setRecentThreats(threatRes.items);
     } catch (err: any) {
       setError(err.message || 'Failed to retrieve dashboard data.');
     } finally {
@@ -64,15 +67,6 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     loadData();
   }, []);
-
-  const triggerLiveSimulation = () => {
-    setIsSimulating(true);
-    setTimeout(() => {
-      setIsSimulating(false);
-      // Simulate live incoming threat event
-      setQuarantined(false);
-    }, 1200);
-  };
 
   if (isLoading) {
     return (
@@ -87,11 +81,17 @@ export const Dashboard: React.FC = () => {
     return <ErrorState title="Dashboard telemetry unavailable" message={error || ''} onRetry={loadData} />;
   }
 
+  const totalAnalyzed = Object.values(data.sentiment_distribution).reduce((a, b) => a + b, 0);
+  const pct = (n: number) => (totalAnalyzed > 0 ? Math.round((n / totalAnalyzed) * 100) : 0);
+  const topCategories = Object.entries(data.category_distribution)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const maxCategory = topCategories.length > 0 ? topCategories[0][1] : 1;
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Platform Live Ops Banner */}
+      {/* Platform Banner */}
       <div className="relative overflow-hidden rounded-2xl bg-surface-card border border-surface-border p-5 sm:p-6 shadow-card">
-        {/* Ambient Top Glow Line */}
         <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand-cyan via-indigo-500 to-rose-500 opacity-60" />
 
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -102,11 +102,7 @@ export const Dashboard: React.FC = () => {
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
               </span>
               <span className="text-[10px] font-mono uppercase font-bold tracking-widest text-emerald-400">
-                ACTIVE DEFENSE GRID
-              </span>
-              <span className="text-slate-600 font-mono text-xs">•</span>
-              <span className="text-[11px] font-mono text-slate-400">
-                AI REASONING LATENCY: 128MS
+                LIVE INTELLIGENCE GRID
               </span>
             </div>
 
@@ -114,20 +110,18 @@ export const Dashboard: React.FC = () => {
               Cybersecurity & Support Operations
             </h1>
             <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-              Unified intelligence grid fusing multi-channel customer inquiries, real-time NLP sentiment extraction, and automated cyber threat vector quarantine.
+              Unified intelligence grid fusing multi-channel customer inquiries, NLP sentiment extraction, and automated cyber threat detection.
             </p>
           </div>
 
-          {/* Action Hub with Simulation Trigger for Hackathon Judges */}
           <div className="flex flex-wrap items-center gap-3 shrink-0">
             <button
-              onClick={triggerLiveSimulation}
-              disabled={isSimulating}
+              onClick={loadData}
               className="px-3.5 py-2 rounded-xl bg-surface-elevated hover:bg-slate-800 text-slate-200 border border-surface-border text-xs font-mono font-semibold transition-all flex items-center gap-2 shadow-sm"
-              title="Simulate incoming threat telemetry"
+              title="Refresh dashboard telemetry"
             >
-              <RefreshCw size={14} className={`text-brand-cyan ${isSimulating ? 'animate-spin' : ''}`} />
-              <span>{isSimulating ? 'INGESTING TELEMETRY...' : 'SIMULATE INGEST'}</span>
+              <RefreshCw size={14} className="text-brand-cyan" />
+              <span>REFRESH DATA</span>
             </button>
 
             <button
@@ -141,102 +135,45 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Critical Incident Containment Strip */}
-      <div className="rounded-2xl border border-rose-500/30 bg-rose-500/[0.04] p-5 shadow-glow-rose/10 relative overflow-hidden">
-        <div className="absolute left-0 inset-y-0 w-1 bg-rose-500 shadow-glow-rose" />
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div className="flex items-start gap-4">
-            <div className="p-2.5 rounded-xl bg-rose-500/15 text-rose-400 border border-rose-500/30 shrink-0 mt-0.5">
-              <ShieldAlert size={20} />
-            </div>
-            <div className="space-y-1.5">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-semibold text-rose-300">Urgent Incident Containment Required</span>
-                <span className="text-[11px] font-mono px-2 py-0.2 rounded bg-rose-500/20 text-rose-200 border border-rose-500/30 font-bold">
-                  TICKET conv_8912
-                </span>
-                <span className="text-[11px] font-mono text-slate-400">Target: Meera Nair (Acme Corp)</span>
-              </div>
-              <p className="text-xs text-slate-300 leading-relaxed max-w-3xl">
-                Active spear-phishing attack attempting 2FA token harvesting via lookalike domain{' '}
-                <span className="font-mono text-rose-300 font-semibold underline decoration-rose-500/60">auth-solwin-verify.cloud-login.net</span>. Customer reported immediate payroll database lockout threat.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0 pl-12 lg:pl-0">
-            <button
-              onClick={() => setQuarantined(true)}
-              disabled={quarantined}
-              className={`px-4 py-2 rounded-xl text-xs font-mono font-semibold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
-                quarantined
-                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 cursor-default shadow-glow-emerald/20'
-                  : 'bg-rose-600 hover:bg-rose-500 text-white shadow-glow-rose font-bold'
-              }`}
-            >
-              {quarantined ? (
-                <>
-                  <CheckCircle2 size={14} />
-                  <span>Domain Quarantined</span>
-                </>
-              ) : (
-                <>
-                  <Lock size={14} />
-                  <span>Quarantine Domain</span>
-                </>
-              )}
-            </button>
-
-            <button
-              onClick={() => navigate('/conversations/conv_8912')}
-              className="px-3.5 py-2 rounded-xl bg-surface-elevated hover:bg-slate-800 border border-surface-border text-slate-200 text-xs font-medium transition-colors flex items-center gap-1.5 shadow-sm"
-            >
-              <span>Inspect Ticket</span>
-              <ArrowRight size={13} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Operational Pulse Bar (KPI Cards) */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
           label="Omnichannel Inbound"
           value={data.total_conversations}
           icon={MessageSquare}
-          trend={{ value: '+12% this week', isPositive: true }}
-          subtext="Processed by NLP Triage"
+          trend={{ value: `${data.open_conversations} open`, isPositive: true }}
+          subtext="Processed by NLP triage"
           variant="default"
         />
         <KpiCard
           label="Unresolved Queue"
-          value={data.unresolved}
+          value={data.unresolved_conversations}
           icon={Clock}
-          trend={{ value: 'Priority queue', isPositive: false }}
-          subtext="Awaiting response"
+          trend={{ value: `${data.urgent_conversations} urgent`, isPositive: false }}
+          subtext="Awaiting resolution"
           variant="warning"
         />
         <KpiCard
-          label="Threats Quarantined"
+          label="Threats Detected"
           value={data.threats_detected}
           icon={ShieldAlert}
-          trend={{ value: '18 active IOCs', isPositive: false }}
-          subtext="EDR / Phishing vectors"
+          trend={{ value: `${data.in_progress_conversations} in progress`, isPositive: false }}
+          subtext="Security intelligence engine"
           variant="danger"
         />
         <KpiCard
-          label="Critical Escalations"
-          value={data.critical_cases || data.critical_threats}
+          label="Critical Threats"
+          value={data.critical_threats}
           icon={Flame}
           trend={{ value: 'Requires immediate action', isPositive: false }}
-          subtext="High urgency triage"
+          subtext="High urgency escalations"
           variant="info"
         />
       </div>
 
-      {/* Main Grid: Active Inquiries vs High-Risk Threat Queue */}
+      {/* Main Grid: Recent conversations vs threat watchlist */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Recent Inbound Conversations (7 cols) */}
+        {/* Left: Recent conversations */}
         <div className="lg:col-span-7 rounded-2xl border border-surface-border bg-surface-card p-5 sm:p-6 space-y-4 shadow-card">
           <div className="flex items-center justify-between pb-3.5 border-b border-surface-border">
             <div>
@@ -244,7 +181,7 @@ export const Dashboard: React.FC = () => {
                 <MessageSquare size={16} className="text-brand-cyan" />
                 <span>Inbound Telemetry Stream</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Tickets triaged by NLP classification & risk weighting</p>
+              <p className="text-xs text-slate-400 mt-0.5">Latest tickets ingested and triaged</p>
             </div>
             <button
               onClick={() => navigate('/conversations')}
@@ -256,6 +193,11 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="divide-y divide-surface-border">
+            {recentConversations.length === 0 && (
+              <p className="py-6 text-center text-xs font-mono text-slate-500">
+                No conversations yet. Create one to see live intelligence.
+              </p>
+            )}
             {recentConversations.map((conv) => (
               <div
                 key={conv.id}
@@ -265,37 +207,38 @@ export const Dashboard: React.FC = () => {
                 <div className="space-y-1.5 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-xs text-slate-200 group-hover:text-brand-cyan transition-colors">
-                      {conv.customer_name}
+                      {conv.customer_name || 'Unknown Customer'}
                     </span>
                     <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-400 border border-surface-border uppercase">
-                      {conv.channel}
+                      {CHANNEL_LABELS[conv.channel] || conv.channel}
                     </span>
-                    <span className="text-[11px] font-mono text-slate-500">• {conv.updated_at}</span>
+                    <span className="text-[11px] font-mono text-slate-500">• {timeAgo(conv.updated_at)}</span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate max-w-md">{conv.issue}</p>
+                  <p className="text-xs text-slate-400 truncate max-w-md">
+                    {conv.subject || conv.conversation_reference}
+                  </p>
                   <div className="flex items-center gap-2 pt-0.5">
-                    <PriorityBadge priority={conv.priority} />
                     <StatusBadge status={conv.status} />
                   </div>
                 </div>
 
                 <div className="shrink-0 flex items-center gap-2 pt-1">
-                  <RiskBadge level={conv.security_risk} size="sm" />
+                  <span className="font-mono text-[10px] text-slate-500">{conv.conversation_reference}</span>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Right: SOC Incident Watchlist (5 cols) */}
+        {/* Right: Threat watchlist */}
         <div className="lg:col-span-5 rounded-2xl border border-surface-border bg-surface-card p-5 sm:p-6 space-y-4 shadow-card">
           <div className="flex items-center justify-between pb-3.5 border-b border-surface-border">
             <div>
               <h2 className="text-sm font-bold text-slate-100 tracking-tight font-sans flex items-center gap-2">
                 <ShieldAlert size={16} className="text-rose-400" />
-                <span>Active Threat Watchlist</span>
+                <span>Threat Watchlist</span>
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Real-time IOC detections and deceptive payloads</p>
+              <p className="text-xs text-slate-400 mt-0.5">Most recent persisted threat records</p>
             </div>
             <button
               onClick={() => navigate('/threats')}
@@ -307,6 +250,11 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="space-y-3">
+            {recentThreats.length === 0 && (
+              <p className="py-6 text-center text-xs font-mono text-slate-500">
+                No threat records persisted yet.
+              </p>
+            )}
             {recentThreats.map((threat) => (
               <div
                 key={threat.id}
@@ -315,121 +263,93 @@ export const Dashboard: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs font-bold text-rose-300 group-hover:text-rose-200 transition-colors">
-                    {threat.id}
+                    {threat.threat_type || 'UNCATEGORIZED'}
                   </span>
-                  <RiskBadge level={threat.risk_level} size="sm" />
+                  <RiskBadge level={threat.risk_level || 'LOW'} size="sm" />
                 </div>
-                <div className="text-xs font-semibold text-slate-200">{threat.threat_type}</div>
                 <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
-                  <span className="truncate text-slate-400">Target: {threat.customer_name}</span>
-                  <span className="uppercase text-slate-400">{threat.status}</span>
+                  <span className="truncate text-slate-400">{timeAgo(threat.created_at)}</span>
+                  <span className="uppercase text-slate-400">
+                    {threat.social_engineering_detected ? 'Social Eng.' : 'Technical'}
+                  </span>
                 </div>
               </div>
             ))}
           </div>
-
-          {/* Quick link to threat directory */}
-          <div className="pt-2 border-t border-surface-border">
-            <button
-              onClick={() => navigate('/threats')}
-              className="w-full p-3 rounded-xl bg-gradient-to-r from-rose-500/15 via-surface-elevated to-surface-elevated hover:from-rose-500/25 border border-rose-500/30 text-slate-200 text-xs font-semibold flex items-center justify-between transition-all group shadow-sm"
-            >
-              <div className="flex items-center gap-2">
-                <ShieldAlert size={15} className="text-rose-400 animate-pulse" />
-                <span>Threat Intelligence Directory: Active Vectors</span>
-              </div>
-              <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform text-rose-400" />
-            </button>
-          </div>
         </div>
       </div>
 
-      {/* Dual Analytical Panels: Sentiment Stratification & Category Volume */}
+      {/* Dual analytical panels: sentiment + categories */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Sentiment Distribution */}
         <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
           <div className="flex items-center justify-between pb-2 border-b border-surface-border">
             <div>
               <h2 className="text-sm font-bold text-slate-100 tracking-tight font-sans">
                 Customer Sentiment Breakdown
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Automated NLP sentiment distribution across open tickets</p>
+              <p className="text-xs text-slate-400 mt-0.5">NLP sentiment distribution across analyzed tickets</p>
             </div>
             <button
               onClick={() => navigate('/insights/customer')}
               className="text-xs font-mono text-brand-cyan hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors px-2 py-1 rounded-lg bg-surface-elevated border border-surface-border"
             >
               <span>Trends</span>
-              <ArrowRight size={12} />
+              <ChevronRight size={12} />
             </button>
           </div>
 
           <div className="space-y-4 pt-1">
-            <div>
-              <div className="flex justify-between text-xs mb-1.5 font-mono">
-                <span className="text-emerald-400 font-semibold">Positive customer sentiment</span>
-                <span className="text-emerald-300 font-bold">{data.sentiment_breakdown.positive_percentage}%</span>
-              </div>
-              <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-emerald-500 h-full rounded-full shadow-glow-emerald"
-                  style={{ width: `${data.sentiment_breakdown.positive_percentage}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1.5 font-mono">
-                <span className="text-slate-300 font-semibold">Neutral inquiries</span>
-                <span className="text-slate-400 font-bold">{data.sentiment_breakdown.neutral_percentage}%</span>
-              </div>
-              <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-slate-500 h-full rounded-full"
-                  style={{ width: `${data.sentiment_breakdown.neutral_percentage}%` }}
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex justify-between text-xs mb-1.5 font-mono">
-                <span className="text-rose-400 font-semibold">Negative or distressed inquiries</span>
-                <span className="text-rose-300 font-bold">{data.sentiment_breakdown.negative_percentage}%</span>
-              </div>
-              <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
-                <div
-                  className="bg-rose-500 h-full rounded-full shadow-glow-rose"
-                  style={{ width: `${data.sentiment_breakdown.negative_percentage}%` }}
-                />
-              </div>
-            </div>
+            {(['POSITIVE', 'NEUTRAL', 'NEGATIVE'] as const).map((label) => {
+              const value = data.sentiment_distribution[label] || 0;
+              const styles =
+                label === 'POSITIVE'
+                  ? { text: 'text-emerald-400', bar: 'bg-emerald-500' }
+                  : label === 'NEUTRAL'
+                  ? { text: 'text-slate-300', bar: 'bg-slate-500' }
+                  : { text: 'text-rose-400', bar: 'bg-rose-500' };
+              const name =
+                label === 'POSITIVE' ? 'Positive' : label === 'NEUTRAL' ? 'Neutral' : 'Negative';
+              return (
+                <div key={label}>
+                  <div className="flex justify-between text-xs mb-1.5 font-mono">
+                    <span className={`${styles.text} font-semibold`}>{name}</span>
+                    <span className="text-slate-300 font-bold">{pct(value)}%</span>
+                  </div>
+                  <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                    <div className={`${styles.bar} h-full rounded-full`} style={{ width: `${pct(value)}%` }} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Top Problem Categories */}
         <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
           <div className="flex items-center justify-between pb-2 border-b border-surface-border">
             <div>
               <h2 className="text-sm font-bold text-slate-100 tracking-tight font-sans">
                 Top Issue Categories
               </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Ticket volume grouped by problem domain</p>
+              <p className="text-xs text-slate-400 mt-0.5">Ticket volume grouped by canonical category</p>
             </div>
             <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface-elevated text-brand-cyan border border-surface-border font-bold">
-              3,970 CASES
+              {data.total_conversations.toLocaleString()} TOTAL
             </span>
           </div>
 
           <div className="space-y-3.5 pt-1">
-            {data.top_issues.map((issue, idx) => {
-              const maxVal = Math.max(...data.top_issues.map((i) => i.count));
-              const pct = Math.round((issue.count / maxVal) * 100);
-
+            {topCategories.length === 0 && (
+              <p className="py-6 text-center text-xs font-mono text-slate-500">
+                Run an analysis to populate category distribution.
+              </p>
+            )}
+            {topCategories.map(([category, count]) => {
+              const pct = Math.round((count / maxCategory) * 100);
               return (
-                <div key={idx} className="space-y-1.5">
+                <div key={category} className="space-y-1.5">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-medium">{issue.name}</span>
-                    <span className="text-slate-500 font-mono text-[11px]">{issue.count.toLocaleString()} cases</span>
+                    <span className="text-slate-300 font-medium">{category}</span>
+                    <span className="text-slate-500 font-mono text-[11px]">{count.toLocaleString()} cases</span>
                   </div>
                   <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
                     <div
