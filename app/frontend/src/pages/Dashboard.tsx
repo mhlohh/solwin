@@ -4,7 +4,12 @@ import { RefreshCw } from "lucide-react";
 import { getDashboardOverview } from "../services/analyticsApi";
 import { getConversations } from "../services/conversationApi";
 import { getThreats } from "../services/securityApi";
-import { DashboardOverview, Conversation, Threat } from "../types/conversation";
+import {
+  DashboardOverview,
+  Conversation,
+  IngestedFeedbackStats,
+  Threat,
+} from "../types/conversation";
 import { RiskBadge } from "../components/common/RiskBadge";
 import { StatusBadge } from "../components/common/StatusBadge";
 import { KpiCard } from "../components/dashboard/KpiCard";
@@ -46,6 +51,130 @@ const CATEGORY_LABELS: Record<string, string> = {
   SERVICE_QUALITY: "Service quality",
   BILLING_PROBLEM: "Billing problem",
   SECURITY_CONCERN: "Security concern",
+};
+
+const PRIORITY_TIER_META = [
+  { key: "CRITICAL", label: "Critical", bar: "bg-danger" },
+  { key: "HIGH", label: "High", bar: "bg-warn" },
+  { key: "MEDIUM", label: "Medium", bar: "bg-accent" },
+  { key: "LOW", label: "Low", bar: "bg-line-strong" },
+];
+
+const IngestedStatRow: React.FC<{
+  label: string;
+  value: string;
+  tone?: "neutral" | "warn" | "danger";
+}> = ({ label, value, tone = "neutral" }) => {
+  const color =
+    tone === "danger"
+      ? "text-danger"
+      : tone === "warn"
+      ? "text-warn"
+      : "text-text-1";
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-sm text-text-2">{label}</span>
+      <span className={`text-lg font-semibold tabular-nums ${color}`}>
+        {value}
+      </span>
+    </div>
+  );
+};
+
+const IngestedFeedbackPanel: React.FC<{ stats: IngestedFeedbackStats }> = ({
+  stats,
+}) => {
+  const total = stats.total_records || 1;
+  const critical = stats.priority_counts["CRITICAL"] || 0;
+  const high = stats.priority_counts["HIGH"] || 0;
+  const topIntents = stats.top_intents.slice(0, 5);
+  const maxIntent = topIntents[0]?.count || 1;
+
+  return (
+    <div className="surface-card">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3">
+        <h2 className="text-sm font-semibold">Ingested feedback dataset</h2>
+        <Link
+          to="/inbox"
+          className="text-sm font-medium text-accent hover:underline"
+        >
+          Open inbox
+        </Link>
+      </div>
+      <div className="grid gap-6 px-4 py-4 lg:grid-cols-3">
+        <div className="space-y-3">
+          <IngestedStatRow
+            label="Records ingested"
+            value={stats.total_records.toLocaleString()}
+          />
+          <IngestedStatRow
+            label="Flagged phishing"
+            value={stats.phishing_flagged.toLocaleString()}
+            tone="danger"
+          />
+          <IngestedStatRow
+            label="Needs attention (critical + high)"
+            value={(critical + high).toLocaleString()}
+            tone="warn"
+          />
+        </div>
+        <div>
+          <p className="section-label mb-2.5">Priority tiers</p>
+          <div className="space-y-2.5">
+            {PRIORITY_TIER_META.map(({ key, label, bar }) => {
+              const count = stats.priority_counts[key] || 0;
+              const width = Math.round((count / total) * 100);
+              return (
+                <div key={key}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="text-text-2">{label}</span>
+                    <span className="font-medium tabular-nums text-text-1">
+                      {count.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
+                    <div
+                      className={`h-full rounded-full ${bar}`}
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div>
+          <p className="section-label mb-2.5">Top intents</p>
+          <div className="space-y-2.5">
+            {topIntents.length === 0 && (
+              <p className="py-4 text-center text-sm text-text-3">
+                No intent data available.
+              </p>
+            )}
+            {topIntents.map(({ issue, count }) => {
+              const width = Math.round((count / maxIntent) * 100);
+              return (
+                <div key={issue}>
+                  <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                    <span className="truncate text-text-2">{issue}</span>
+                    <span className="font-medium tabular-nums text-text-1">
+                      {count.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
+                    <div
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${width}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export const Dashboard: React.FC = () => {
@@ -157,6 +286,10 @@ export const Dashboard: React.FC = () => {
           tone={data.threats_detected > 0 ? "danger" : "neutral"}
         />
       </div>
+
+      {data.ingested_feedback && (
+        <IngestedFeedbackPanel stats={data.ingested_feedback} />
+      )}
 
       <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
         {/* Recent conversations */}

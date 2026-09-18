@@ -50,6 +50,14 @@ class DashboardOverviewResponse(BaseModel):
             "Count of threats grouped by risk level (LOW, MEDIUM, HIGH, CRITICAL)"
         ),
     )
+    ingested_feedback: Optional[Dict] = Field(
+        default=None,
+        description=(
+            "Statistics over the ingested raw feedback dataset (total_records, "
+            "phishing_flagged, priority_counts, top_intents). Null when the "
+            "data ingestion service is unavailable."
+        ),
+    )
 
 
 class IssueFrequency(BaseModel):
@@ -57,6 +65,21 @@ class IssueFrequency(BaseModel):
 
     issue: str = Field(..., description="Reported customer issue description")
     count: int = Field(..., description="Number of times this issue was recorded")
+
+
+class IngestedFeedbackStats(BaseModel):
+    """Aggregated statistics over the ingested raw feedback dataset."""
+
+    total_records: int = Field(0, description="Records in the ingested dataset")
+    phishing_flagged: int = Field(
+        0, description="Records flagged as phishing in the source dataset"
+    )
+    priority_counts: Dict[str, int] = Field(
+        default_factory=dict, description="Record counts per priority tier"
+    )
+    top_intents: List[IssueFrequency] = Field(
+        default_factory=list, description="Most frequent dataset intents"
+    )
 
 
 class CustomerAnalyticsResponse(BaseModel):

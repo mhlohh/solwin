@@ -156,6 +156,13 @@ export interface ThreatFilterParams {
 
 // ---- Analytics (GET /dashboard/overview, /analytics/*) ----
 
+export interface IngestedFeedbackStats {
+  total_records: number;
+  phishing_flagged: number;
+  priority_counts: Record<string, number>;
+  top_intents: IssueFrequency[];
+}
+
 export interface DashboardOverview {
   total_conversations: number;
   open_conversations: number;
@@ -168,6 +175,7 @@ export interface DashboardOverview {
   sentiment_distribution: Record<string, number>;
   category_distribution: Record<string, number>;
   risk_distribution: Record<string, number>;
+  ingested_feedback?: IngestedFeedbackStats | null;
 }
 
 export interface IssueFrequency {

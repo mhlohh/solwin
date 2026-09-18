@@ -32,6 +32,7 @@ class TicketBase(BaseModel):
     phishing: Optional[bool] = None
     sender: Optional[str] = ""
     label: Optional[str] = ""
+    priority: Optional[str] = None
 
 class TicketCreate(TicketBase):
     pass
@@ -60,3 +61,19 @@ class PaginatedTicketsResponse(BaseModel):
     skip: int
     limit: int
     items: List[TicketResponse]
+
+class FacetsResponse(BaseModel):
+    total: int
+    phishing: int
+    intents: List[str]
+    priority_counts: dict[str, int]
+
+class IntentFrequency(BaseModel):
+    issue: str
+    count: int
+
+class TicketStatsResponse(BaseModel):
+    total_records: int
+    phishing_flagged: int
+    priority_counts: dict[str, int]
+    top_intents: List[IntentFrequency]

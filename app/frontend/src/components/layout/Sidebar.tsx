@@ -2,6 +2,7 @@ import React from "react";
 import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard,
+  Inbox,
   MessageSquare,
   ShieldAlert,
   Users,
@@ -29,7 +30,10 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
   },
   {
     title: "Support",
-    items: [{ label: "Conversations", to: "/conversations", icon: MessageSquare }],
+    items: [
+      { label: "Inbox", to: "/inbox", icon: Inbox },
+      { label: "Conversations", to: "/conversations", icon: MessageSquare },
+    ],
   },
   {
     title: "Security",

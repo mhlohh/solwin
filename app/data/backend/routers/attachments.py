@@ -10,12 +10,18 @@ from .. import crud, schemas
 
 router = APIRouter(tags=["Attachments"])
 
-UPLOAD_DIR = os.getenv("UPLOAD_DIR", "/app/uploads")
-if not os.path.isabs(UPLOAD_DIR):
-    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    UPLOAD_DIR = os.path.join(base_dir, "uploads")
+UPLOAD_DIR = os.getenv("UPLOAD_DIR", "")
+if not UPLOAD_DIR:
+    # Default to <backend>/uploads so the API runs anywhere (Docker sets UPLOAD_DIR=/app/uploads)
+    UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads")
 
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+try:
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+except OSError as exc:
+    raise RuntimeError(
+        f"Cannot create upload directory '{UPLOAD_DIR}'. "
+        "Set the UPLOAD_DIR environment variable to a writable path."
+    ) from exc
 
 ALLOWED_MIME_TYPES = {
     "application/pdf": ".pdf",

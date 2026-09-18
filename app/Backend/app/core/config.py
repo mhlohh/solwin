@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-2.5-flash"
     ML_SERVICE_URL: str = "http://localhost:8000"
+    DATA_SERVICE_URL: str = "http://localhost:8002"
 
     # Attachments & Storage
     ATTACHMENTS_STORAGE_DIR: str = "storage/attachments"

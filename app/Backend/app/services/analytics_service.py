@@ -12,12 +12,14 @@ from app.models.threat import Threat
 from app.schemas.analytics import (
     CustomerAnalyticsResponse,
     DashboardOverviewResponse,
+    IngestedFeedbackStats,
     IssueFrequency,
     RecentThreat,
     SecurityAnalyticsResponse,
     TrendPoint,
     TrendResponse,
 )
+from app.services.data_service_client import get_ingested_feedback_stats
 
 
 class AnalyticsService:
@@ -132,6 +134,15 @@ class AnalyticsService:
             row[0]: row[1] for row in risk_rows if row[0]
         }
 
+        # 7. Ingested raw feedback dataset stats (external Data API; degrades to
+        # None when unreachable so the dashboard never depends on it).
+        ingested = get_ingested_feedback_stats()
+        ingested_payload = (
+            ingested.model_dump()
+            if isinstance(ingested, IngestedFeedbackStats)
+            else ingested
+        )
+
         return DashboardOverviewResponse(
             total_conversations=total_conv,
             open_conversations=open_conv,
@@ -144,6 +155,7 @@ class AnalyticsService:
             sentiment_distribution=sentiment_distribution,
             category_distribution=category_distribution,
             risk_distribution=risk_distribution,
+            ingested_feedback=ingested_payload,
         )
 
     @staticmethod

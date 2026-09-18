@@ -7,18 +7,39 @@ from .. import crud, schemas
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
+@router.get("/facets", response_model=schemas.FacetsResponse)
+def get_facets(db: Session = Depends(get_db)):
+    """Totals, phishing count, distinct intents, and priority counts for inbox badges."""
+    total, phishing_count, intents, priority_counts = crud.get_ticket_facets(db)
+    return {
+        "total": total,
+        "phishing": phishing_count,
+        "intents": intents,
+        "priority_counts": priority_counts,
+    }
+
+@router.get("/stats", response_model=schemas.TicketStatsResponse)
+def get_stats(db: Session = Depends(get_db)):
+    """Pre-aggregated dataset statistics for the dashboard bridge."""
+    return crud.get_ticket_stats(db)
+
 @router.get("", response_model=schemas.PaginatedTicketsResponse)
 def list_tickets(
     skip: int = Query(0, ge=0, description="Number of items to skip"),
     limit: int = Query(50, ge=1, le=500, description="Maximum items to return"),
     intent: Optional[str] = Query(None, description="Filter by intent category"),
     search: Optional[str] = Query(None, description="Search term in subject, message, or issue"),
+    phishing: Optional[bool] = Query(None, description="Filter by phishing flag"),
+    priority: Optional[str] = Query(None, description="Filter by priority tier (CRITICAL/HIGH/MEDIUM/LOW)"),
     db: Session = Depends(get_db)
 ):
     """
     Retrieve tickets list with pagination and optional filtering by intent or search term.
     """
-    total, items = crud.get_tickets(db, skip=skip, limit=limit, intent=intent, search=search)
+    total, items = crud.get_tickets(
+        db, skip=skip, limit=limit, intent=intent, search=search,
+        phishing=phishing, priority=priority,
+    )
     return {
         "total": total,
         "skip": skip,

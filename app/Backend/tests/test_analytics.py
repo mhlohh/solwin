@@ -542,3 +542,55 @@ async def test_analytics_endpoints_do_not_invoke_ai_or_security(override_db):
 
         assert not mock_ai.called
         assert not mock_sec.called
+
+
+# ============================================================================
+# 10. Ingested feedback dataset stats (Data API bridge)
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_dashboard_overview_merges_ingested_feedback_stats(override_db):
+    """Stats from the Data API are surfaced under ingested_feedback."""
+    fake = {
+        "total_records": 20862,
+        "phishing_flagged": 100,
+        "priority_counts": {"CRITICAL": 126, "HIGH": 1020, "MEDIUM": 2356, "LOW": 17360},
+        "top_intents": [
+            {"issue": "General Enquiry", "count": 900},
+            {"issue": "Damaged", "count": 700},
+        ],
+    }
+    with patch(
+        "app.services.analytics_service.get_ingested_feedback_stats",
+        return_value=fake,
+    ):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/dashboard/overview")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ingested_feedback"]["total_records"] == 20862
+    assert data["ingested_feedback"]["phishing_flagged"] == 100
+    assert data["ingested_feedback"]["priority_counts"]["CRITICAL"] == 126
+    assert data["ingested_feedback"]["top_intents"][0]["issue"] == "General Enquiry"
+
+
+@pytest.mark.asyncio
+async def test_dashboard_overview_degrades_without_data_api(override_db):
+    """When the Data API is unreachable, ingested_feedback is None and the
+    dashboard still returns the full overview (graceful degradation)."""
+    with patch(
+        "app.services.analytics_service.get_ingested_feedback_stats",
+        return_value=None,
+    ):
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            response = await client.get("/api/v1/dashboard/overview")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ingested_feedback"] is None
+    assert "total_conversations" in data
+    assert "urgent_conversations" in data

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from .database import engine, SessionLocal, Base
 from .models import Ticket
 from .clean_data import clean_csv_data
+from .priority import assign_priority
 
 
 def _coerce_phishing(value) -> bool | None:
@@ -46,7 +47,14 @@ def seed_database(db: Session, file_path: str = None, batch_size: int = 1000):
                 technique=r.get("technique", ""),
                 phishing=_coerce_phishing(r.get("phishing")),
                 sender=r.get("sender", ""),
-                label=r.get("label", "")
+                label=r.get("label", ""),
+                priority=assign_priority(
+                    phishing=_coerce_phishing(r.get("phishing")),
+                    technique=r.get("technique"),
+                    intent=r.get("intent"),
+                    issue=r.get("issue"),
+                    label=r.get("label"),
+                ),
             )
             for r in batch
         ]

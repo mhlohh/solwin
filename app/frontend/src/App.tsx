@@ -5,6 +5,7 @@ import { MainLayout } from './components/layout/MainLayout';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
+import { Inbox } from './pages/Inbox';
 import { Conversations } from './pages/Conversations';
 import { ConversationDetails } from './pages/ConversationDetails';
 import { Threats } from './pages/Threats';
@@ -21,6 +22,7 @@ export const App: React.FC = () => {
           <Route element={<MainLayout />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/inbox" element={<Inbox />} />
             <Route path="/conversations" element={<Conversations />} />
             <Route path="/conversations/:id" element={<ConversationDetails />} />
             <Route path="/threats" element={<Threats />} />

@@ -20,6 +20,7 @@ class Ticket(Base):
     phishing = Column(Boolean, nullable=True, index=True)
     sender = Column(String(255), nullable=True)
     label = Column(String(128), nullable=True)
+    priority = Column(String(16), nullable=False, default="LOW", index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     attachments = relationship(
