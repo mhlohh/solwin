@@ -1,4 +1,5 @@
 import json
+import time
 from typing import List, Optional
 
 from google import genai
@@ -12,6 +13,26 @@ from app.services.ai.preprocessing import clean_text
 from app.services.ai.prompts import CUSTOMER_SUPPORT_SYSTEM_INSTRUCTION
 
 logger = get_logger("solwin.customer_intelligence")
+
+# Transient upstream errors (rate limits, capacity spikes) worth retrying.
+_TRANSIENT_MARKERS = (
+    "unavailable",
+    "high demand",
+    "503",
+    "internal error",
+    "500",
+    "deadline exceeded",
+    "504",
+    "timeout",
+    "connection reset",
+    "temporarily over",
+)
+_MAX_ATTEMPTS = 4
+
+
+def _is_transient_error(err_msg: str) -> bool:
+    lowered = err_msg.lower()
+    return any(marker in lowered for marker in _TRANSIENT_MARKERS)
 
 
 class CustomerIntelligenceError(Exception):
@@ -105,39 +126,57 @@ class CustomerIntelligenceService:
 
         client = self.get_client()
 
-        try:
-            config = types.GenerateContentConfig(
-                system_instruction=CUSTOMER_SUPPORT_SYSTEM_INSTRUCTION,
-                response_mime_type="application/json",
-                response_schema=CustomerIntelligenceOutput,
-                temperature=0.1,
-            )
+        config = types.GenerateContentConfig(
+            system_instruction=CUSTOMER_SUPPORT_SYSTEM_INSTRUCTION,
+            response_mime_type="application/json",
+            response_schema=CustomerIntelligenceOutput,
+            temperature=0.1,
+        )
 
-            response = client.models.generate_content(
-                model=self.model_name,
-                contents=formatted_content,
-                config=config,
-            )
-        except CustomerIntelligenceError:
-            raise
-        except Exception as exc:
-            err_msg = str(exc)
+        # Retry transient upstream failures (capacity spikes, resets) with
+        # exponential backoff; fail fast on permanent errors.
+        response = None
+        last_exc: Optional[Exception] = None
+        for attempt in range(1, _MAX_ATTEMPTS + 1):
+            try:
+                response = client.models.generate_content(
+                    model=self.model_name,
+                    contents=formatted_content,
+                    config=config,
+                )
+                break
+            except CustomerIntelligenceError:
+                raise
+            except Exception as exc:
+                last_exc = exc
+                err_msg = str(exc)
+                if not _is_transient_error(err_msg):
+                    break
+                delay = min(2 ** (attempt - 1), 8)
+                logger.warning(
+                    f"Transient Gemini error (attempt {attempt}/{_MAX_ATTEMPTS}), "
+                    f"retrying in {delay}s: {err_msg[:200]}"
+                )
+                time.sleep(delay)
+
+        if response is None:
+            err_msg = str(last_exc) if last_exc else "unknown error"
             logger.error(f"Gemini call failed for model [{self.model_name}]: {err_msg}")
             if "not found" in err_msg.lower() or "unsupported" in err_msg.lower():
                 raise CustomerIntelligenceError(
                     f"Configured Gemini model '{self.model_name}' is "
                     "unavailable or unsupported.",
                     status_code=502,
-                ) from exc
+                ) from last_exc
             if "quota" in err_msg.lower() or "resource" in err_msg.lower():
                 raise CustomerIntelligenceError(
                     "Gemini API quota or rate limit exceeded.",
                     status_code=503,
-                ) from exc
+                ) from last_exc
             raise CustomerIntelligenceError(
                 "Gemini AI service encountered an error while processing.",
                 status_code=502,
-            ) from exc
+            ) from last_exc
 
         raw_text = response.text
         if not raw_text:

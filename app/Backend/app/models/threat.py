@@ -3,10 +3,10 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.models.types import JSONType, UUIDType
 
 if TYPE_CHECKING:
     from app.models.conversation import Conversation
@@ -16,12 +16,12 @@ class Threat(Base):
     __tablename__ = "threats"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType,
         primary_key=True,
         default=uuid.uuid4,
     )
     conversation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType,
         ForeignKey("conversations.id", ondelete="CASCADE"),
         nullable=True,
         index=True,
@@ -41,7 +41,7 @@ class Threat(Base):
         nullable=False,
     )
     techniques: Mapped[Optional[List[str]]] = mapped_column(
-        JSONB,
+        JSONType,
         nullable=True,
         default=list,
     )
@@ -50,17 +50,17 @@ class Threat(Base):
         nullable=True,
     )
     suspicious_urls: Mapped[Optional[List[str]]] = mapped_column(
-        JSONB,
+        JSONType,
         nullable=True,
         default=list,
     )
     suspicious_emails: Mapped[Optional[List[str]]] = mapped_column(
-        JSONB,
+        JSONType,
         nullable=True,
         default=list,
     )
     risk_reasons: Mapped[Optional[List[str]]] = mapped_column(
-        JSONB,
+        JSONType,
         nullable=True,
         default=list,
     )

@@ -2,14 +2,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import Boolean, DateTime, Float, Index, JSON, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Boolean, DateTime, Float, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
-
-JSONType = JSONB().with_variant(JSON(), "sqlite")
-UUIDType = UUID(as_uuid=True).with_variant(String(36), "sqlite")
+from app.models.types import JSONType, UUIDType
 
 
 class CustomerReview(Base):
@@ -39,7 +36,9 @@ class CustomerReview(Base):
 
     # Classification & Sentiment
     category: Mapped[str] = mapped_column(String(128), index=True)
-    fine_grained_intent: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    fine_grained_intent: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True
+    )
     classification_confidence: Mapped[float] = mapped_column(Float, default=0.0)
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False)
     sentiment_label: Mapped[str] = mapped_column(String(32), default="NEUTRAL")
@@ -67,7 +66,9 @@ class CustomerReview(Base):
     security_risk_score: Mapped[float] = mapped_column(Float, default=0.0)
     phishing: Mapped[Dict[str, Any]] = mapped_column(JSONType, default=dict)
     urls: Mapped[List[Dict[str, Any]]] = mapped_column(JSONType, default=list)
-    email_addresses: Mapped[List[Dict[str, Any]]] = mapped_column(JSONType, default=list)
+    email_addresses: Mapped[List[Dict[str, Any]]] = mapped_column(
+        JSONType, default=list
+    )
     social_engineering: Mapped[Dict[str, Any]] = mapped_column(JSONType, default=dict)
     security_reasons: Mapped[List[str]] = mapped_column(JSONType, default=list)
 

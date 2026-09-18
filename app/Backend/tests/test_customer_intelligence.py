@@ -55,9 +55,12 @@ def test_customer_intelligence_empty_messages():
 
 
 def test_customer_intelligence_missing_api_key():
-    service = CustomerIntelligenceService(api_key="")
-    with pytest.raises(CustomerIntelligenceError) as exc_info:
-        service.get_client()
+    # Isolate from ambient GEMINI_API_KEY in developer .env files
+    with patch("app.services.ai.customer_intelligence.get_settings") as mock_settings:
+        mock_settings.return_value.GEMINI_API_KEY = ""
+        service = CustomerIntelligenceService(api_key="")
+        with pytest.raises(CustomerIntelligenceError) as exc_info:
+            service.get_client()
     assert exc_info.value.status_code == 503
 
 

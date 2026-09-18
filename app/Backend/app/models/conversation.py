@@ -3,11 +3,11 @@ from datetime import datetime, timezone
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import DateTime, Enum, ForeignKey, String
-from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.enums import ConversationChannel, ConversationStatus
+from app.models.types import UUIDType
 
 if TYPE_CHECKING:
     from app.models.analysis import Analysis
@@ -20,7 +20,7 @@ class Conversation(Base):
     __tablename__ = "conversations"
 
     id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType,
         primary_key=True,
         default=uuid.uuid4,
     )
@@ -54,7 +54,7 @@ class Conversation(Base):
         default=ConversationStatus.OPEN,
     )
     assigned_agent_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True),
+        UUIDType,
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
