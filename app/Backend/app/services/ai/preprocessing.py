@@ -1,17 +1,14 @@
-import os
 import sys
+from pathlib import Path
 from typing import Optional
 
-# Ensure app/data can be imported from repo root
-_repo_root = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-_data_dir = os.path.join(_repo_root, "data")
-if _data_dir not in sys.path:
-    sys.path.insert(0, _data_dir)
+# app/Backend/app/services/ai/preprocessing.py -> parents[4] == <repo>/app
+DATA_BACKEND_DIR = Path(__file__).resolve().parents[4] / "data" / "backend"
+if DATA_BACKEND_DIR.exists() and str(DATA_BACKEND_DIR) not in sys.path:
+    sys.path.insert(0, str(DATA_BACKEND_DIR))
 
 try:
-    from backend.clean_data import build_complaint_text, normalize_text
+    from clean_data import build_complaint_text, normalize_text
 except ImportError:
     try:
         from app.data.backend.clean_data import build_complaint_text, normalize_text

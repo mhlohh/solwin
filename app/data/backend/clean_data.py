@@ -6,11 +6,17 @@ import pandas as pd
 
 
 def normalize_text(text: Optional[str]) -> str:
-    """Normalize whitespace, unicode characters (NFKC), and strip whitespace."""
+    """Normalize whitespace, unicode characters (NFKC), and strip whitespace.
+
+    Also removes control characters (null bytes, backspace, etc.) so that
+    untrusted customer content never carries raw control sequences into the
+    pipeline.
+    """
     if not text:
         return ""
     normalized = unicodedata.normalize("NFKC", str(text))
-    normalized = re.sub(r"[\r\n\t]+", " ", normalized)
+    # Strip control characters (includes \r, \n, \t, null bytes, backspace).
+    normalized = re.sub(r"[\x00-\x1f\x7f]+", " ", normalized)
     normalized = re.sub(r"\s+", " ", normalized)
     return normalized.strip()
 
