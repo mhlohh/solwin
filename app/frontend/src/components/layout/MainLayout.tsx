@@ -1,19 +1,17 @@
-import React, { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import { Navbar } from './Navbar';
-import { Sidebar } from './Sidebar';
+import React, { useState } from "react";
+import { Outlet } from "react-router-dom";
+import { Topbar } from "./Topbar";
+import { Sidebar } from "./Sidebar";
 
 export const MainLayout: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background text-slate-900 dark:text-slate-100 flex flex-col selection:bg-cyan-500/20 selection:text-cyan-900 dark:selection:text-brand-cyan relative overflow-x-hidden soc-grid-bg">
-      <Navbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
-      
-      <div className="flex flex-1 w-full">
+    <div className="min-h-screen bg-bg text-text-1">
+      <Topbar onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <div className="mx-auto flex w-full max-w-[1400px]">
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-        
-        <main className="flex-1 w-full max-w-full overflow-x-hidden p-4 sm:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>

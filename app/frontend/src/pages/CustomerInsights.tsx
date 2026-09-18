@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { getCustomerAnalytics, getCustomerTrends } from '../services/analyticsApi';
-import { CustomerAnalytics, TrendResponse } from '../types/conversation';
-import { ChartSkeleton } from '../components/common/LoadingSkeleton';
-import { ErrorState } from '../components/common/ErrorState';
-import { Users, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { getCustomerAnalytics, getCustomerTrends } from "../services/analyticsApi";
+import { CustomerAnalytics, TrendResponse } from "../types/conversation";
+import { ChartSkeleton } from "../components/common/LoadingSkeleton";
+import { ErrorState } from "../components/common/ErrorState";
+import { RefreshCw } from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -17,30 +17,61 @@ import {
   Pie,
   Cell,
   Legend,
-} from 'recharts';
+} from "recharts";
 
 const PRIORITY_COLORS: Record<string, string> = {
-  LOW: '#64748b',
-  MEDIUM: '#f59e0b',
-  HIGH: '#f97316',
-  CRITICAL: '#f43f5e',
+  LOW: "#9a9fa6",
+  MEDIUM: "#d29a44",
+  HIGH: "#c47b18",
+  CRITICAL: "#b42318",
 };
 
 const SENTIMENT_COLORS: Record<string, string> = {
-  POSITIVE: '#10b981',
-  NEUTRAL: '#94a3b8',
-  NEGATIVE: '#f43f5e',
+  POSITIVE: "#57a86b",
+  NEUTRAL: "#9a9fa6",
+  NEGATIVE: "#b42318",
 };
 
-const RESOLUTION_COLORS: Record<string, string> = {
-  RESOLVED: '#10b981',
-  UNRESOLVED: '#f43f5e',
-  PARTIALLY_RESOLVED: '#f59e0b',
-  UNKNOWN: '#64748b',
+const CATEGORY_LABELS: Record<string, string> = {
+  ACCOUNT_ACCESS: "Account access",
+  PAYMENT_BILLING: "Payment & billing",
+  TECHNICAL_ISSUE: "Technical issue",
+  SERVICE_REQUEST: "Service request",
+  OTHER: "Other",
+  PAYMENT_TRANSACTION_ISSUE: "Payment transaction",
+  ACCOUNT_LOGIN_PROBLEM: "Login problem",
+  PRODUCT_ISSUE: "Product issue",
+  DELIVERY_SHIPPING_PROBLEM: "Delivery & shipping",
+  REFUND_REQUEST: "Refund request",
+  SUBSCRIPTION_ISSUE: "Subscription",
+  TECHNICAL_PROBLEM: "Technical problem",
+  SERVICE_QUALITY: "Service quality",
+  BILLING_PROBLEM: "Billing problem",
+  SECURITY_CONCERN: "Security concern",
 };
 
-function toSeries(dist: Record<string, number>, nameKey = 'name'): { [k: string]: string | number }[] {
-  return Object.entries(dist).map(([key, count]) => ({ [nameKey]: key, count }));
+function toSeries(dist: Record<string, number>) {
+  return Object.entries(dist).map(([name, count]) => ({ name, count }));
+}
+
+function ChartCard({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="surface-card">
+      <div className="border-b border-line px-4 py-3">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {subtitle && <p className="mt-0.5 text-xs text-text-3">{subtitle}</p>}
+      </div>
+      <div className="px-2 py-4">{children}</div>
+    </div>
+  );
 }
 
 export const CustomerInsights: React.FC = () => {
@@ -60,7 +91,7 @@ export const CustomerInsights: React.FC = () => {
       setData(analyticsRes);
       setTrends(trendsRes);
     } catch (err: any) {
-      setError(err.message || 'Failed to fetch customer insights.');
+      setError(err.message || "Failed to fetch customer insights.");
     } finally {
       setIsLoading(false);
     }
@@ -72,9 +103,9 @@ export const CustomerInsights: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
-        <div className="h-6 w-48 bg-slate-800 rounded animate-pulse" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="space-y-5">
+        <ChartSkeleton />
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <ChartSkeleton />
           <ChartSkeleton />
         </div>
@@ -83,147 +114,104 @@ export const CustomerInsights: React.FC = () => {
   }
 
   if (error || !data) {
-    return <ErrorState title="Insights Unavailable" message={error || ''} onRetry={loadData} />;
+    return (
+      <ErrorState
+        title="Insights unavailable"
+        message={error || ""}
+        onRetry={loadData}
+      />
+    );
   }
 
-  const CustomDarkTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-surface-elevated/95 border border-surface-border rounded-xl p-3 shadow-dropdown text-xs backdrop-blur-md">
-          <p className="font-mono text-slate-400 mb-1">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <p
-              key={`item-${index}`}
-              className="font-mono text-xs flex items-center justify-between gap-4"
-              style={{ color: entry.color }}
-            >
-              <span>{entry.name}:</span>
-              <span className="font-bold text-white">{entry.value}</span>
-            </p>
-          ))}
-        </div>
-      );
-    }
-    return null;
+  const tooltipStyle = {
+    backgroundColor: "var(--card)",
+    border: "1px solid var(--border)",
+    borderRadius: 8,
+    fontSize: 12,
+    color: "var(--text-1)",
+    boxShadow: "var(--shadow-2)",
   };
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-4 pb-4 border-b border-surface-border">
+    <div className="space-y-5 pb-10">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white flex items-center gap-2 font-sans">
-            <Users size={22} className="text-brand-cyan" />
-            <span>Customer Support Intelligence</span>
-          </h1>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Sentiment distribution, problem category clusters, priority stratification, and resolution efficacy — all computed from persisted analysis records.
+          <h1 className="text-lg font-semibold tracking-tight">Customer insights</h1>
+          <p className="text-sm text-text-2">
+            {data.total_conversations} conversations analyzed ·{" "}
+            {data.unresolved_complaint_count} unresolved ·{" "}
+            {data.urgent_complaint_count} urgent
           </p>
         </div>
-
         <button
           onClick={loadData}
-          className="p-2.5 rounded-xl border border-surface-border bg-surface-card hover:bg-surface-elevated text-slate-400 hover:text-slate-100 transition-all self-start sm:self-auto shadow-sm"
-          title="Refresh analytics"
+          className="inline-flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm font-medium hover:bg-elevated"
         >
-          <RefreshCw size={15} />
+          <RefreshCw size={14} />
+          Refresh
         </button>
       </div>
 
-      {/* Row 1: Trends & categories */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="pb-2 border-b border-surface-border">
-            <h3 className="text-sm font-bold text-white tracking-tight font-sans">
-              Conversation Volume Trend (14-Day)
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Ingested conversations per UTC day</p>
-          </div>
-
-          <div className="h-72 w-full pt-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <ChartCard
+          title="Conversation volume"
+          subtitle="Conversations per day, last 14 days"
+        >
+          <div className="h-64">
             {trends && trends.trends.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={trends.trends}>
-                  <defs>
-                    <linearGradient id="colorVol" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#06b6d4" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#06b6d4" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <YAxis stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
-                  <Tooltip content={<CustomDarkTooltip />} />
+                  <XAxis dataKey="date" tickMargin={8} />
+                  <YAxis allowDecimals={false} width={28} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: "var(--border-strong)" }} />
                   <Area
                     type="monotone"
                     dataKey="count"
                     name="Conversations"
-                    stroke="#06b6d4"
-                    strokeWidth={2}
-                    fillOpacity={1}
-                    fill="url(#colorVol)"
+                    stroke="var(--accent)"
+                    strokeWidth={1.5}
+                    fill="var(--accent-weak)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-xs font-mono text-slate-500">
-                Not enough data yet — trends appear once conversations exist.
+              <div className="flex h-full items-center justify-center text-sm text-text-3">
+                Not enough data yet.
               </div>
             )}
           </div>
-        </div>
+        </ChartCard>
 
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="pb-2 border-b border-surface-border">
-            <h3 className="text-sm font-bold text-white tracking-tight font-sans">
-              Issue Category Distribution
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Inquiries classified by the NLP intent engine</p>
-          </div>
-
-          <div className="h-72 w-full pt-2">
-            {data.most_frequently_reported_issues.length > 0 ||
-            Object.keys(data.category_distribution).length > 0 ? (
+        <ChartCard title="Issue categories" subtitle="Conversations by classified category">
+          <div className="h-64">
+            {Object.keys(data.category_distribution).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={Object.entries(data.category_distribution).map(([category, count]) => ({
-                    category,
-                    count,
-                  }))}
+                  data={Object.entries(data.category_distribution).map(
+                    ([category, count]) => ({
+                      category: CATEGORY_LABELS[category] || category,
+                      count,
+                    })
+                  )}
                   layout="vertical"
-                  margin={{ left: 20 }}
+                  margin={{ left: 8, right: 16 }}
                 >
-                  <XAxis type="number" stroke="#64748b" tick={{ fill: '#94a3b8', fontSize: 11 }} allowDecimals={false} />
-                  <YAxis
-                    dataKey="category"
-                    type="category"
-                    stroke="#64748b"
-                    tick={{ fill: '#94a3b8', fontSize: 10 }}
-                    width={170}
-                  />
-                  <Tooltip content={<CustomDarkTooltip />} />
-                  <Bar dataKey="count" fill="#06b6d4" radius={[0, 6, 6, 0]} />
+                  <XAxis type="number" allowDecimals={false} />
+                  <YAxis dataKey="category" type="category" width={130} />
+                  <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--inset)" }} />
+                  <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-full flex items-center justify-center text-xs font-mono text-slate-500">
-                Run analyses to populate category distribution.
+              <div className="flex h-full items-center justify-center text-sm text-text-3">
+                Run analyses to populate categories.
               </div>
             )}
           </div>
-        </div>
-      </div>
+        </ChartCard>
 
-      {/* Row 2: priority & resolution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="pb-2 border-b border-surface-border">
-            <h3 className="text-sm font-bold text-white tracking-tight font-sans">
-              Triage Priority Stratification
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Automated urgency weighting distribution</p>
-          </div>
-
-          <div className="h-64 w-full pt-2 flex items-center justify-center">
+        <ChartCard title="Priority mix" subtitle="Automated triage priority distribution">
+          <div className="h-56">
             {Object.keys(data.priority_distribution).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -231,36 +219,35 @@ export const CustomerInsights: React.FC = () => {
                     data={toSeries(data.priority_distribution)}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={85}
-                    paddingAngle={4}
+                    innerRadius={48}
+                    outerRadius={72}
+                    paddingAngle={2}
                     dataKey="count"
                   >
                     {Object.entries(data.priority_distribution).map(([key], index) => (
-                      <Cell key={`cell-${index}`} fill={PRIORITY_COLORS[key] || '#3b82f6'} />
+                      <Cell key={index} fill={PRIORITY_COLORS[key] || "#6f727a"} />
                     ))}
                   </Pie>
-                  <Tooltip content={<CustomDarkTooltip />} />
-                  <Legend formatter={(value) => <span className="text-xs font-mono text-slate-300">{value}</span>} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend
+                    formatter={(value) => (
+                      <span style={{ color: "var(--text-2)", fontSize: 12 }}>
+                        {String(value).toLowerCase().replace(/_/g, " ")}
+                      </span>
+                    )}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-xs font-mono text-slate-500">No priority data yet.</div>
+              <div className="flex h-full items-center justify-center text-sm text-text-3">
+                No priority data yet.
+              </div>
             )}
           </div>
-        </div>
+        </ChartCard>
 
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="pb-2 border-b border-surface-border">
-            <h3 className="text-sm font-bold text-white tracking-tight font-sans">
-              Sentiment & Resolution Status
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">
-              {data.unresolved_complaint_count} unresolved · {data.urgent_complaint_count} urgent
-            </p>
-          </div>
-
-          <div className="h-64 w-full pt-2 flex items-center justify-center">
+        <ChartCard title="Sentiment mix" subtitle="Across analyzed conversations">
+          <div className="h-56">
             {Object.keys(data.sentiment_distribution).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
@@ -268,51 +255,57 @@ export const CustomerInsights: React.FC = () => {
                     data={toSeries(data.sentiment_distribution)}
                     cx="50%"
                     cy="50%"
-                    innerRadius={60}
-                    outerRadius={85}
-                    paddingAngle={4}
+                    innerRadius={48}
+                    outerRadius={72}
+                    paddingAngle={2}
                     dataKey="count"
                   >
                     {Object.entries(data.sentiment_distribution).map(([key], index) => (
-                      <Cell key={`cell-${index}`} fill={SENTIMENT_COLORS[key] || '#94a3b8'} />
+                      <Cell key={index} fill={SENTIMENT_COLORS[key] || "#6f727a"} />
                     ))}
                   </Pie>
-                  <Tooltip content={<CustomDarkTooltip />} />
-                  <Legend formatter={(value) => <span className="text-xs font-mono text-slate-300">{value}</span>} />
+                  <Tooltip contentStyle={tooltipStyle} />
+                  <Legend
+                    formatter={(value) => (
+                      <span style={{ color: "var(--text-2)", fontSize: 12 }}>
+                        {String(value).toLowerCase()}
+                      </span>
+                    )}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="text-xs font-mono text-slate-500">No sentiment data yet.</div>
+              <div className="flex h-full items-center justify-center text-sm text-text-3">
+                No sentiment data yet.
+              </div>
             )}
           </div>
-        </div>
+        </ChartCard>
       </div>
 
-      {/* Row 3: Top issues */}
       {data.most_frequently_reported_issues.length > 0 && (
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="pb-2 border-b border-surface-border">
-            <h3 className="text-sm font-bold text-white tracking-tight font-sans">
-              Most Frequently Reported Issues
-            </h3>
-            <p className="text-xs text-slate-400 mt-0.5">Top recurring issue summaries by frequency</p>
+        <div className="surface-card">
+          <div className="border-b border-line px-4 py-3">
+            <h3 className="text-sm font-semibold">Most reported issues</h3>
           </div>
-          <div className="space-y-2.5 pt-1">
+          <div className="space-y-3 px-4 py-4">
             {data.most_frequently_reported_issues.slice(0, 8).map((issue, idx) => {
               const maxVal = data.most_frequently_reported_issues[0]?.count || 1;
-              const pct = Math.round((issue.count / maxVal) * 100);
+              const width = Math.round((issue.count / maxVal) * 100);
               return (
-                <div key={idx} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-medium truncate max-w-lg" title={issue.issue}>
+                <div key={idx}>
+                  <div className="mb-1 flex items-center justify-between gap-4 text-sm">
+                    <span className="truncate text-text-1" title={issue.issue}>
                       {issue.issue}
                     </span>
-                    <span className="text-slate-500 font-mono text-[11px]">{issue.count} reports</span>
+                    <span className="shrink-0 tabular-nums text-text-2">
+                      {issue.count} report{issue.count === 1 ? "" : "s"}
+                    </span>
                   </div>
-                  <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
                     <div
-                      className="bg-gradient-to-r from-brand-cyan to-blue-500 h-full rounded-full"
-                      style={{ width: `${pct}%` }}
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${width}%` }}
                     />
                   </div>
                 </div>

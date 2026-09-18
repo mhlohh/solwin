@@ -1,49 +1,59 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import {
-  MessageSquare,
-  ShieldAlert,
-  Clock,
-  ChevronRight,
-  Flame,
-  RefreshCw,
-} from 'lucide-react';
-import { getDashboardOverview } from '../services/analyticsApi';
-import { getConversations } from '../services/conversationApi';
-import { getThreats } from '../services/securityApi';
-import { DashboardOverview, Conversation, Threat } from '../types/conversation';
-import { RiskBadge } from '../components/common/RiskBadge';
-import { StatusBadge } from '../components/common/StatusBadge';
-import { KpiCard } from '../components/dashboard/KpiCard';
-import { CardSkeleton } from '../components/common/LoadingSkeleton';
-import { ErrorState } from '../components/common/ErrorState';
+import React, { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { RefreshCw } from "lucide-react";
+import { getDashboardOverview } from "../services/analyticsApi";
+import { getConversations } from "../services/conversationApi";
+import { getThreats } from "../services/securityApi";
+import { DashboardOverview, Conversation, Threat } from "../types/conversation";
+import { RiskBadge } from "../components/common/RiskBadge";
+import { StatusBadge } from "../components/common/StatusBadge";
+import { KpiCard } from "../components/dashboard/KpiCard";
+import { CardSkeleton, TableSkeleton } from "../components/common/LoadingSkeleton";
+import { ErrorState } from "../components/common/ErrorState";
 
 const CHANNEL_LABELS: Record<string, string> = {
-  EMAIL: 'Email',
-  CHAT: 'Chat',
-  TICKET: 'Ticket',
-  SOCIAL_MEDIA: 'Social',
-  OTHER: 'Other',
+  EMAIL: "Email",
+  CHAT: "Chat",
+  TICKET: "Ticket",
+  SOCIAL_MEDIA: "Social",
+  OTHER: "Other",
 };
 
 function timeAgo(iso: string): string {
   const then = new Date(iso).getTime();
-  if (Number.isNaN(then)) return '';
+  if (Number.isNaN(then)) return "";
   const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins} min ago`;
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
   const hours = Math.round(mins / 60);
-  if (hours < 24) return `${hours} hr ago`;
-  return `${Math.round(hours / 24)} d ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
 }
+
+const CATEGORY_LABELS: Record<string, string> = {
+  ACCOUNT_ACCESS: "Account access",
+  PAYMENT_BILLING: "Payment & billing",
+  TECHNICAL_ISSUE: "Technical issue",
+  SERVICE_REQUEST: "Service request",
+  OTHER: "Other",
+  PAYMENT_TRANSACTION_ISSUE: "Payment transaction",
+  ACCOUNT_LOGIN_PROBLEM: "Login problem",
+  PRODUCT_ISSUE: "Product issue",
+  DELIVERY_SHIPPING_PROBLEM: "Delivery & shipping",
+  REFUND_REQUEST: "Refund request",
+  SUBSCRIPTION_ISSUE: "Subscription",
+  TECHNICAL_PROBLEM: "Technical problem",
+  SERVICE_QUALITY: "Service quality",
+  BILLING_PROBLEM: "Billing problem",
+  SECURITY_CONCERN: "Security concern",
+};
 
 export const Dashboard: React.FC = () => {
   const [data, setData] = useState<DashboardOverview | null>(null);
-  const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
-  const [recentThreats, setRecentThreats] = useState<Threat[]>([]);
+  const [recent, setRecent] = useState<Conversation[]>([]);
+  const [threats, setThreats] = useState<Threat[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
 
   const loadData = async () => {
     setIsLoading(true);
@@ -51,14 +61,14 @@ export const Dashboard: React.FC = () => {
     try {
       const [overview, convRes, threatRes] = await Promise.all([
         getDashboardOverview(),
-        getConversations({ page: 1, page_size: 4 }),
-        getThreats({ page: 1, page_size: 4 }),
+        getConversations({ page: 1, page_size: 6 }),
+        getThreats({ page: 1, page_size: 5 }),
       ]);
       setData(overview);
-      setRecentConversations(convRes.items);
-      setRecentThreats(threatRes.items);
+      setRecent(convRes.items);
+      setThreats(threatRes.items);
     } catch (err: any) {
-      setError(err.message || 'Failed to retrieve dashboard data.');
+      setError(err.message || "Failed to load dashboard data.");
     } finally {
       setIsLoading(false);
     }
@@ -70,253 +80,214 @@ export const Dashboard: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 max-w-7xl mx-auto">
-        <div className="h-7 w-56 bg-slate-800 rounded-xl animate-pulse" />
+      <div className="space-y-4">
         <CardSkeleton count={4} />
+        <TableSkeleton rows={6} />
       </div>
     );
   }
 
   if (error || !data) {
-    return <ErrorState title="Dashboard telemetry unavailable" message={error || ''} onRetry={loadData} />;
+    return (
+      <ErrorState
+        title="Dashboard unavailable"
+        message={error || ""}
+        onRetry={loadData}
+      />
+    );
   }
 
-  const totalAnalyzed = Object.values(data.sentiment_distribution).reduce((a, b) => a + b, 0);
-  const pct = (n: number) => (totalAnalyzed > 0 ? Math.round((n / totalAnalyzed) * 100) : 0);
+  const totalAnalyzed = Object.values(data.sentiment_distribution).reduce(
+    (a, b) => a + b,
+    0
+  );
+  const pct = (n: number) =>
+    totalAnalyzed > 0 ? Math.round((n / totalAnalyzed) * 100) : 0;
   const topCategories = Object.entries(data.category_distribution)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   const maxCategory = topCategories.length > 0 ? topCategories[0][1] : 1;
 
   return (
-    <div className="space-y-8 max-w-7xl mx-auto pb-12">
-      {/* Platform Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-surface-card border border-surface-border p-5 sm:p-6 shadow-card">
-        <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-brand-cyan via-indigo-500 to-rose-500 opacity-60" />
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
-              </span>
-              <span className="text-[10px] font-mono uppercase font-bold tracking-widest text-emerald-400">
-                LIVE INTELLIGENCE GRID
-              </span>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white font-sans">
-              Cybersecurity & Support Operations
-            </h1>
-            <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-              Unified intelligence grid fusing multi-channel customer inquiries, NLP sentiment extraction, and automated cyber threat detection.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
-            <button
-              onClick={loadData}
-              className="px-3.5 py-2 rounded-xl bg-surface-elevated hover:bg-slate-800 text-slate-200 border border-surface-border text-xs font-mono font-semibold transition-all flex items-center gap-2 shadow-sm"
-              title="Refresh dashboard telemetry"
-            >
-              <RefreshCw size={14} className="text-brand-cyan" />
-              <span>REFRESH DATA</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/threats')}
-              className="px-3.5 py-2 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/35 text-xs font-mono font-semibold transition-all flex items-center gap-2 shadow-glow-rose/20"
-            >
-              <ShieldAlert size={15} />
-              <span>THREAT RADAR</span>
-            </button>
-          </div>
+    <div className="space-y-6 pb-10">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-text-2">
+            Support queue health and security signals at a glance.
+          </p>
         </div>
+        <button
+          onClick={loadData}
+          className="inline-flex items-center gap-2 rounded-lg border border-line bg-card px-3 py-1.5 text-sm font-medium hover:bg-elevated"
+        >
+          <RefreshCw size={14} />
+          Refresh
+        </button>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         <KpiCard
-          label="Omnichannel Inbound"
+          label="Conversations"
           value={data.total_conversations}
-          icon={MessageSquare}
-          trend={{ value: `${data.open_conversations} open`, isPositive: true }}
-          subtext="Processed by NLP triage"
-          variant="default"
+          detail={`${data.open_conversations} open`}
         />
         <KpiCard
-          label="Unresolved Queue"
+          label="Unresolved"
           value={data.unresolved_conversations}
-          icon={Clock}
-          trend={{ value: `${data.urgent_conversations} urgent`, isPositive: false }}
-          subtext="Awaiting resolution"
-          variant="warning"
+          detail="Awaiting resolution"
+          tone="warn"
         />
         <KpiCard
-          label="Threats Detected"
+          label="Urgent"
+          value={data.urgent_conversations}
+          detail="High priority"
+          tone="warn"
+        />
+        <KpiCard
+          label="In progress"
+          value={data.in_progress_conversations}
+          detail="Being worked on"
+        />
+        <KpiCard
+          label="Threats detected"
           value={data.threats_detected}
-          icon={ShieldAlert}
-          trend={{ value: `${data.in_progress_conversations} in progress`, isPositive: false }}
-          subtext="Security intelligence engine"
-          variant="danger"
-        />
-        <KpiCard
-          label="Critical Threats"
-          value={data.critical_threats}
-          icon={Flame}
-          trend={{ value: 'Requires immediate action', isPositive: false }}
-          subtext="High urgency escalations"
-          variant="info"
+          detail={`${data.critical_threats} critical`}
+          tone={data.threats_detected > 0 ? "danger" : "neutral"}
         />
       </div>
 
-      {/* Main Grid: Recent conversations vs threat watchlist */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left: Recent conversations */}
-        <div className="lg:col-span-7 rounded-2xl border border-surface-border bg-surface-card p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="flex items-center justify-between pb-3.5 border-b border-surface-border">
-            <div>
-              <h2 className="text-sm font-bold text-slate-100 tracking-tight font-sans flex items-center gap-2">
-                <MessageSquare size={16} className="text-brand-cyan" />
-                <span>Inbound Telemetry Stream</span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Latest tickets ingested and triaged</p>
-            </div>
-            <button
-              onClick={() => navigate('/conversations')}
-              className="text-xs font-mono text-brand-cyan hover:text-cyan-300 font-semibold flex items-center gap-1 transition-colors px-2.5 py-1 rounded-lg bg-surface-elevated border border-surface-border"
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
+        {/* Recent conversations */}
+        <div className="surface-card lg:col-span-2">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h2 className="text-sm font-semibold">Latest conversations</h2>
+            <Link
+              to="/conversations"
+              className="text-sm font-medium text-accent hover:underline"
             >
-              <span>View all tickets</span>
-              <ChevronRight size={13} />
-            </button>
+              View all
+            </Link>
           </div>
-
-          <div className="divide-y divide-surface-border">
-            {recentConversations.length === 0 && (
-              <p className="py-6 text-center text-xs font-mono text-slate-500">
-                No conversations yet. Create one to see live intelligence.
+          <div>
+            {recent.length === 0 && (
+              <p className="px-4 py-10 text-center text-sm text-text-3">
+                No conversations yet.
               </p>
             )}
-            {recentConversations.map((conv) => (
-              <div
+            {recent.map((conv) => (
+              <Link
                 key={conv.id}
-                onClick={() => navigate(`/conversations/${conv.id}`)}
-                className="py-3.5 first:pt-1 last:pb-1 flex items-start justify-between gap-4 cursor-pointer group hover:bg-surface-elevated/60 -mx-2 px-3 rounded-xl transition-all"
+                to={`/conversations/${conv.id}`}
+                className="flex items-center justify-between gap-4 border-b border-line px-4 py-3 last:border-b-0 hover:bg-elevated"
               >
-                <div className="space-y-1.5 min-w-0">
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="font-bold text-xs text-slate-200 group-hover:text-brand-cyan transition-colors">
-                      {conv.customer_name || 'Unknown Customer'}
+                    <span className="truncate text-sm font-medium text-text-1">
+                      {conv.subject || "(no subject)"}
                     </span>
-                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-surface-elevated text-slate-400 border border-surface-border uppercase">
-                      {CHANNEL_LABELS[conv.channel] || conv.channel}
-                    </span>
-                    <span className="text-[11px] font-mono text-slate-500">• {timeAgo(conv.updated_at)}</span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate max-w-md">
-                    {conv.subject || conv.conversation_reference}
-                  </p>
-                  <div className="flex items-center gap-2 pt-0.5">
-                    <StatusBadge status={conv.status} />
+                  <div className="mt-0.5 flex items-center gap-1.5 text-xs text-text-3">
+                    <span>{conv.customer_name || "Unknown"}</span>
+                    <span>·</span>
+                    <span>{CHANNEL_LABELS[conv.channel] || conv.channel}</span>
+                    <span>·</span>
+                    <span>{conv.conversation_reference}</span>
+                    <span>·</span>
+                    <span>{timeAgo(conv.updated_at)}</span>
                   </div>
                 </div>
-
-                <div className="shrink-0 flex items-center gap-2 pt-1">
-                  <span className="font-mono text-[10px] text-slate-500">{conv.conversation_reference}</span>
-                </div>
-              </div>
+                <StatusBadge status={conv.status} />
+              </Link>
             ))}
           </div>
         </div>
 
-        {/* Right: Threat watchlist */}
-        <div className="lg:col-span-5 rounded-2xl border border-surface-border bg-surface-card p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="flex items-center justify-between pb-3.5 border-b border-surface-border">
-            <div>
-              <h2 className="text-sm font-bold text-slate-100 tracking-tight font-sans flex items-center gap-2">
-                <ShieldAlert size={16} className="text-rose-400" />
-                <span>Threat Watchlist</span>
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Most recent persisted threat records</p>
-            </div>
-            <button
-              onClick={() => navigate('/threats')}
-              className="text-xs font-mono text-rose-300 hover:text-white font-semibold flex items-center gap-1 transition-colors px-2.5 py-1 rounded-lg bg-rose-500/15 border border-rose-500/30"
+        {/* Threats */}
+        <div className="surface-card">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h2 className="text-sm font-semibold">Recent threats</h2>
+            <Link
+              to="/threats"
+              className="text-sm font-medium text-accent hover:underline"
             >
-              <span>Directory</span>
-              <ChevronRight size={13} />
-            </button>
+              View all
+            </Link>
           </div>
-
-          <div className="space-y-3">
-            {recentThreats.length === 0 && (
-              <p className="py-6 text-center text-xs font-mono text-slate-500">
-                No threat records persisted yet.
+          <div>
+            {threats.length === 0 && (
+              <p className="px-4 py-10 text-center text-sm text-text-3">
+                No threat records yet.
               </p>
             )}
-            {recentThreats.map((threat) => (
-              <div
+            {threats.map((threat) => (
+              <Link
                 key={threat.id}
-                onClick={() => navigate(`/threats/${threat.id}`)}
-                className="p-3.5 rounded-xl border border-surface-border bg-surface-elevated/60 hover:bg-surface-elevated hover:border-slate-700 cursor-pointer transition-all space-y-2 group shadow-sm"
+                to={`/threats/${threat.id}`}
+                className="block border-b border-line px-4 py-3 last:border-b-0 hover:bg-elevated"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-rose-300 group-hover:text-rose-200 transition-colors">
-                    {threat.threat_type || 'UNCATEGORIZED'}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-medium text-text-1">
+                    {threat.threat_type === "NONE" || !threat.threat_type
+                      ? "No threat classified"
+                      : threat.threat_type}
                   </span>
-                  <RiskBadge level={threat.risk_level || 'LOW'} size="sm" />
+                  <RiskBadge level={threat.risk_level || "LOW"} size="sm" />
                 </div>
-                <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
-                  <span className="truncate text-slate-400">{timeAgo(threat.created_at)}</span>
-                  <span className="uppercase text-slate-400">
-                    {threat.social_engineering_detected ? 'Social Eng.' : 'Technical'}
-                  </span>
+                <div className="mt-0.5 text-xs text-text-3">
+                  {timeAgo(threat.created_at)}
+                  {threat.social_engineering_detected && " · social engineering"}
+                  {threat.techniques && threat.techniques.length > 0 && (
+                    <> · {threat.techniques[0].toLowerCase().replace(/_/g, " ")}</>
+                  )}
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Dual analytical panels: sentiment + categories */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="flex items-center justify-between pb-2 border-b border-surface-border">
-            <div>
-              <h2 className="text-sm font-bold text-slate-100 tracking-tight font-sans">
-                Customer Sentiment Breakdown
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">NLP sentiment distribution across analyzed tickets</p>
-            </div>
-            <button
-              onClick={() => navigate('/insights/customer')}
-              className="text-xs font-mono text-brand-cyan hover:text-cyan-300 font-medium flex items-center gap-1 transition-colors px-2 py-1 rounded-lg bg-surface-elevated border border-surface-border"
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2">
+        {/* Sentiment */}
+        <div className="surface-card">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h2 className="text-sm font-semibold">Customer sentiment</h2>
+            <Link
+              to="/insights/customer"
+              className="text-sm font-medium text-accent hover:underline"
             >
-              <span>Trends</span>
-              <ChevronRight size={12} />
-            </button>
+              Insights
+            </Link>
           </div>
-
-          <div className="space-y-4 pt-1">
-            {(['POSITIVE', 'NEUTRAL', 'NEGATIVE'] as const).map((label) => {
+          <div className="space-y-3.5 px-4 py-4">
+            {(["POSITIVE", "NEUTRAL", "NEGATIVE"] as const).map((label) => {
               const value = data.sentiment_distribution[label] || 0;
-              const styles =
-                label === 'POSITIVE'
-                  ? { text: 'text-emerald-400', bar: 'bg-emerald-500' }
-                  : label === 'NEUTRAL'
-                  ? { text: 'text-slate-300', bar: 'bg-slate-500' }
-                  : { text: 'text-rose-400', bar: 'bg-rose-500' };
+              const bar =
+                label === "POSITIVE"
+                  ? "bg-ok"
+                  : label === "NEGATIVE"
+                  ? "bg-danger"
+                  : "bg-line-strong";
               const name =
-                label === 'POSITIVE' ? 'Positive' : label === 'NEUTRAL' ? 'Neutral' : 'Negative';
+                label === "POSITIVE"
+                  ? "Positive"
+                  : label === "NEUTRAL"
+                  ? "Neutral"
+                  : "Negative";
               return (
                 <div key={label}>
-                  <div className="flex justify-between text-xs mb-1.5 font-mono">
-                    <span className={`${styles.text} font-semibold`}>{name}</span>
-                    <span className="text-slate-300 font-bold">{pct(value)}%</span>
+                  <div className="mb-1 flex justify-between text-sm">
+                    <span className="text-text-2">{name}</span>
+                    <span className="font-medium tabular-nums text-text-1">
+                      {pct(value)}%
+                    </span>
                   </div>
-                  <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
-                    <div className={`${styles.bar} h-full rounded-full`} style={{ width: `${pct(value)}%` }} />
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
+                    <div
+                      className={`h-full rounded-full ${bar}`}
+                      style={{ width: `${pct(value)}%` }}
+                    />
                   </div>
                 </div>
               );
@@ -324,37 +295,33 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-surface-card border border-surface-border rounded-2xl p-5 sm:p-6 space-y-4 shadow-card">
-          <div className="flex items-center justify-between pb-2 border-b border-surface-border">
-            <div>
-              <h2 className="text-sm font-bold text-slate-100 tracking-tight font-sans">
-                Top Issue Categories
-              </h2>
-              <p className="text-xs text-slate-400 mt-0.5">Ticket volume grouped by canonical category</p>
-            </div>
-            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface-elevated text-brand-cyan border border-surface-border font-bold">
-              {data.total_conversations.toLocaleString()} TOTAL
-            </span>
+        {/* Categories */}
+        <div className="surface-card">
+          <div className="border-b border-line px-4 py-3">
+            <h2 className="text-sm font-semibold">Top issue categories</h2>
           </div>
-
-          <div className="space-y-3.5 pt-1">
+          <div className="space-y-3 px-4 py-4">
             {topCategories.length === 0 && (
-              <p className="py-6 text-center text-xs font-mono text-slate-500">
-                Run an analysis to populate category distribution.
+              <p className="py-6 text-center text-sm text-text-3">
+                Run an analysis to populate categories.
               </p>
             )}
             {topCategories.map(([category, count]) => {
-              const pct = Math.round((count / maxCategory) * 100);
+              const width = Math.round((count / maxCategory) * 100);
               return (
-                <div key={category} className="space-y-1.5">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300 font-medium">{category}</span>
-                    <span className="text-slate-500 font-mono text-[11px]">{count.toLocaleString()} cases</span>
+                <div key={category}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="text-text-2">
+                      {CATEGORY_LABELS[category] || category}
+                    </span>
+                    <span className="font-medium tabular-nums text-text-1">
+                      {count}
+                    </span>
                   </div>
-                  <div className="w-full bg-slate-800/80 h-2 rounded-full overflow-hidden">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
                     <div
-                      className="bg-gradient-to-r from-brand-cyan to-blue-500 h-full rounded-full shadow-glow-cyan/50"
-                      style={{ width: `${pct}%` }}
+                      className="h-full rounded-full bg-accent"
+                      style={{ width: `${width}%` }}
                     />
                   </div>
                 </div>

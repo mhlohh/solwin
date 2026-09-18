@@ -1,49 +1,39 @@
-import React from 'react';
+import React from "react";
 
-export const CardSkeleton: React.FC<{ count?: number }> = ({ count = 4 }) => {
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      {Array.from({ length: count }).map((_, i) => (
-        <div
-          key={i}
-          className="bg-surface-card border border-surface-border rounded-2xl p-5 animate-pulse space-y-3 shadow-card"
-        >
-          <div className="flex justify-between items-center">
-            <div className="h-3 w-24 bg-slate-800 rounded-md" />
-            <div className="h-7 w-7 bg-slate-800 rounded-lg" />
-          </div>
-          <div className="h-8 w-20 bg-slate-800 rounded-md" />
-          <div className="h-3 w-32 bg-slate-800/60 rounded-md" />
-        </div>
-      ))}
-    </div>
-  );
-};
+const shimmer = "rounded-md bg-inset animate-pulse";
 
-export const TableSkeleton: React.FC<{ rows?: number }> = ({ rows = 5 }) => {
-  return (
-    <div className="bg-surface-card border border-surface-border rounded-2xl p-4 animate-pulse space-y-3 shadow-card">
-      <div className="h-9 bg-slate-800 rounded-lg" />
-      {Array.from({ length: rows }).map((_, i) => (
-        <div key={i} className="h-12 bg-slate-800/40 rounded-lg" />
-      ))}
-    </div>
-  );
-};
-
-export const ChartSkeleton: React.FC = () => {
-  return (
-    <div className="bg-surface-card border border-surface-border rounded-2xl p-6 animate-pulse shadow-card">
-      <div className="h-4 w-48 bg-slate-800 rounded mb-6" />
-      <div className="h-64 bg-slate-900/50 rounded-xl flex items-end justify-between p-6 gap-2 border border-surface-border">
-        {Array.from({ length: 7 }).map((_, i) => (
-          <div
-            key={i}
-            className="w-full bg-slate-800/80 rounded-t"
-            style={{ height: `${20 + (i * 12) % 60}%` }}
-          />
-        ))}
+export const CardSkeleton: React.FC<{ count?: number }> = ({ count = 4 }) => (
+  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="surface-card px-4 py-3.5">
+        <div className={`h-3 w-24 ${shimmer}`} />
+        <div className={`mt-3 h-7 w-16 ${shimmer}`} />
+        <div className={`mt-3 h-3 w-32 ${shimmer}`} />
       </div>
+    ))}
+  </div>
+);
+
+export const TableSkeleton: React.FC<{ rows?: number }> = ({ rows = 6 }) => (
+  <div className="surface-card overflow-hidden">
+    <div className="border-b border-line px-4 py-3">
+      <div className={`h-3 w-40 ${shimmer}`} />
     </div>
-  );
-};
+    {Array.from({ length: rows }).map((_, i) => (
+      <div key={i} className="border-b border-line px-4 py-3.5 last:border-b-0">
+        <div className={`h-3.5 ${i % 3 === 1 ? "w-2/3" : "w-1/2"} ${shimmer}`} />
+      </div>
+    ))}
+  </div>
+);
+
+export const ChartSkeleton: React.FC = () => (
+  <div className="surface-card p-5">
+    <div className={`h-4 w-48 ${shimmer}`} />
+    <div className={`mt-6 h-64 w-full ${shimmer}`} />
+  </div>
+);
+
+export const LineSkeleton: React.FC<{ className?: string }> = ({ className = "w-56" }) => (
+  <div className={`h-5 ${className} ${shimmer}`} />
+);

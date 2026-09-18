@@ -1,5 +1,5 @@
-import React from 'react';
-import { ShieldCheck, LucideIcon } from 'lucide-react';
+import React from "react";
+import { Inbox, LucideIcon } from "lucide-react";
 
 interface EmptyStateProps {
   title: string;
@@ -14,24 +14,24 @@ interface EmptyStateProps {
 export const EmptyState: React.FC<EmptyStateProps> = ({
   title,
   description,
-  icon: Icon = ShieldCheck,
+  icon: Icon = Inbox,
   action,
-}) => {
-  return (
-    <div className="flex flex-col items-center justify-center p-12 bg-surface-card/60 border border-surface-border rounded-2xl text-center shadow-card backdrop-blur-sm">
-      <div className="w-14 h-14 rounded-2xl bg-surface-elevated border border-surface-border flex items-center justify-center text-slate-400 mb-4 shadow-sm">
-        <Icon size={24} className="stroke-[1.75]" />
-      </div>
-      <h3 className="text-sm font-semibold text-slate-200 mb-1 font-sans">{title}</h3>
-      <p className="text-xs text-slate-400 max-w-sm mb-6 leading-relaxed">{description}</p>
-      {action && (
-        <button
-          onClick={action.onClick}
-          className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-mono font-semibold transition-all shadow-sm"
-        >
-          {action.label}
-        </button>
-      )}
+}) => (
+  <div className="flex flex-col items-center justify-center px-6 py-14 text-center">
+    <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-elevated text-text-3">
+      <Icon size={19} />
     </div>
-  );
-};
+    <h3 className="mt-3 text-sm font-semibold text-text-1">{title}</h3>
+    <p className="mx-auto mt-1.5 max-w-sm text-sm leading-relaxed text-text-2">
+      {description}
+    </p>
+    {action && (
+      <button
+        onClick={action.onClick}
+        className="mt-5 rounded-lg border border-line bg-card px-3.5 py-2 text-sm font-medium text-text-1 hover:bg-elevated"
+      >
+        {action.label}
+      </button>
+    )}
+  </div>
+);

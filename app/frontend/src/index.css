@@ -2,298 +2,163 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Dark Theme (Obsidian SOC Command Center) */
-:root, html.dark {
-  color-scheme: dark;
-  --color-bg: #0b0f17;
-  --color-surface: #111827;
-  --color-surface-card: #111827;
-  --color-surface-elevated: #182234;
-  --color-surface-lighter: #1e293b;
-  --color-surface-border: rgba(255, 255, 255, 0.08);
-  --color-surface-border-active: rgba(6, 182, 212, 0.35);
-  --color-surface-glow: rgba(6, 182, 212, 0.12);
-  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.5), 0 2px 6px -1px rgba(0, 0, 0, 0.3);
-  --shadow-elevated: 0 10px 30px -4px rgba(0, 0, 0, 0.7), 0 4px 12px -2px rgba(0, 0, 0, 0.5);
-  --shadow-dropdown: 0 20px 25px -5px rgba(0, 0, 0, 0.8), 0 10px 10px -5px rgba(0, 0, 0, 0.4);
-  --grid-line-color: rgba(255, 255, 255, 0.025);
-  --scrollbar-track: #0b0f17;
-  --scrollbar-thumb: #1e293b;
-  --scrollbar-thumb-hover: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+/* ============================================================
+   Solwin design tokens — practical operator console.
+   Light is the default; dark mode via `html.dark` (class strategy).
+   The palette is deliberately neutral; color is reserved for meaning
+   (status, priority, risk). No glows, no gradients, no decorative
+   animation. Density is preferred over decoration.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --elevated: #f8f9fb;
+  --inset: #f2f3f6;
+  --border: #e4e6eb;
+  --border-strong: #d2d5db;
+
+  /* Text */
+  --text-1: #17181a;
+  --text-2: #5f6368;
+  --text-3: #9a9fa6;
+
+  /* Accent (single, quiet) */
+  --accent: #2f6fed;
+  --accent-weak: #eef3fe;
+  --accent-border: #c8d9fb;
+
+  /* Semantic */
+  --ok: #1a7f37;
+  --ok-weak: #e9f5ec;
+  --ok-border: #c4e3cc;
+  --warn: #95560a;
+  --warn-weak: #fdf3e0;
+  --warn-border: #f2ddb4;
+  --danger: #b42318;
+  --danger-weak: #fdeceb;
+  --danger-border: #f5c9c5;
+
+  /* Shadows: essentially flat */
+  --shadow-1: 0 1px 2px rgba(16, 20, 28, 0.05);
+  --shadow-2: 0 2px 8px rgba(16, 20, 28, 0.07);
+
+  --scrollbar-thumb: #d2d5db;
+  --scrollbar-track: transparent;
 }
 
-/* Light Theme: Premium Utilitarian Minimalism & Editorial UI Spec */
-/* - Canvas / Background: Pure White #FFFFFF or Warm Bone/Off-White #F7F6F3 / #FBFBFA */
-/* - Primary Surface (Cards): #FFFFFF */
-/* - Structural Borders: Ultra-light gray #EAEAEA / 1px solid #EAEAEA */
-/* - Elevation: Practically non-existent or ultra-diffuse low opacity (< 0.05) */
-/* - Text: Charcoal #111111 / #2F3437 for body, muted gray #787774 for secondary */
-/* - Pastels: Pale Red (#FDEBEC / #9F2F2D), Pale Blue (#E1F3FE / #1F6C9F), Pale Green (#EDF3EC / #346538), Pale Yellow (#FBF3DB / #956400) */
-html.light {
-  color-scheme: light;
-  --color-bg: #FBFBFA;
-  --color-surface: #FFFFFF;
-  --color-surface-card: #FFFFFF;
-  --color-surface-elevated: #F7F6F3;
-  --color-surface-lighter: #FBFBFA;
-  --color-surface-border: #EAEAEA;
-  --color-surface-border-active: #111111;
-  --color-surface-glow: transparent;
-  --shadow-card: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  --shadow-elevated: 0 2px 8px 0 rgba(0, 0, 0, 0.04);
-  --shadow-dropdown: 0 4px 16px 0 rgba(0, 0, 0, 0.06);
-  --grid-line-color: rgba(0, 0, 0, 0.03);
-  --scrollbar-track: #FBFBFA;
-  --scrollbar-thumb: #D4D4D4;
-  --scrollbar-thumb-hover: #A3A3A3;
-  --text-primary: #111111;
-  --text-secondary: #787774;
-  --text-muted: #999999;
+html.dark {
+  color-scheme: dark;
+
+  --bg: #131417;
+  --card: #1b1d21;
+  --elevated: #202227;
+  --inset: #26282e;
+  --border: #2d2f36;
+  --border-strong: #3c3f47;
+
+  --text-1: #ededef;
+  --text-2: #a2a5ad;
+  --text-3: #6f727a;
+
+  --accent: #6d9bff;
+  --accent-weak: #1d2434;
+  --accent-border: #31415f;
+
+  --ok: #57a86b;
+  --ok-weak: #17241b;
+  --ok-border: #2b4433;
+  --warn: #d29a44;
+  --warn-weak: #292116;
+  --warn-border: #4a3a1d;
+  --danger: #e5695e;
+  --danger-weak: #2b1917;
+  --danger-border: #52282a;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.4);
+
+  --scrollbar-thumb: #3c3f47;
 }
 
 body {
   margin: 0;
-  background-color: var(--color-bg);
-  color: var(--text-primary);
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.6;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* =========================================================
-   Light Theme Comprehensive Global Overrides (Per Minimalist UI)
-   ========================================================= */
-
-/* Typography & Text Contrast */
-html.light h1,
-html.light h2,
-html.light h3,
-html.light h4,
-html.light .text-white,
-html.light .text-slate-100 {
-  color: #111111 !important;
+/* Keep native controls consistent with the theme */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
 }
 
-html.light .text-slate-200,
-html.light .text-slate-300 {
-  color: #2F3437 !important;
+/* ---------- utility classes used across the app ---------- */
+
+.surface-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
 }
 
-html.light .text-slate-400 {
-  color: #787774 !important;
+.surface-inset {
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 
-html.light .text-slate-500 {
-  color: #787774 !important;
+/* Section label: small caps, quiet */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
 }
 
-html.light .text-slate-600 {
-  color: #4A4A4A !important;
+/* Focus visibility for keyboard users, minimal footprint */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
 }
 
-/* Surfaces & Containers */
-html.light .bg-surface,
-html.light .bg-surface-card {
-  background-color: #FFFFFF !important;
-  border-color: #EAEAEA !important;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
-}
-
-html.light .bg-surface-elevated,
-html.light .bg-surface-elevated\/40,
-html.light .bg-surface-elevated\/50,
-html.light .bg-surface-elevated\/60,
-html.light .bg-surface-elevated\/70,
-html.light .bg-surface-elevated\/80,
-html.light .bg-surface-elevated\/90 {
-  background-color: #F7F6F3 !important;
-  border-color: #EAEAEA !important;
-}
-
-html.light .bg-slate-50,
-html.light .bg-slate-100 {
-  background-color: #F7F6F3 !important;
-  border-color: #EAEAEA !important;
-  color: #2F3437 !important;
-}
-
-html.light .bg-slate-800,
-html.light .bg-slate-800\/40,
-html.light .bg-slate-800\/60,
-html.light .bg-slate-800\/80,
-html.light .bg-slate-900,
-html.light .bg-slate-900\/50,
-html.light .bg-slate-900\/80,
-html.light .bg-slate-950 {
-  background-color: #F7F6F3 !important;
-  border-color: #EAEAEA !important;
-  color: #111111 !important;
-}
-
-/* Borders & Dividers */
-html.light .border-surface-border,
-html.light .border-slate-700,
-html.light .border-slate-800,
-html.light .border-slate-900 {
-  border-color: #EAEAEA !important;
-}
-
-html.light .divide-surface-border > :not([hidden]) ~ :not([hidden]),
-html.light .divide-slate-800 > :not([hidden]) ~ :not([hidden]),
-html.light .divide-slate-700 > :not([hidden]) ~ :not([hidden]) {
-  border-color: #EAEAEA !important;
-}
-
-/* Strip all heavy glows & shadows in light mode */
-html.light .shadow-card,
-html.light .shadow-elevated,
-html.light .shadow-glow-cyan,
-html.light .shadow-glow-rose,
-html.light .shadow-glow-indigo,
-html.light .shadow-glow-emerald,
-html.light .shadow-glow-amber,
-html.light [class*="shadow-glow-"] {
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03) !important;
-}
-
-/* Muted Pastels per Minimalist UI Protocol */
-/* Pale Green: #EDF3EC / Text: #346538 */
-html.light .bg-emerald-500\/10,
-html.light .bg-emerald-500\/15,
-html.light .bg-emerald-500\/20,
-html.light .bg-emerald-50 {
-  background-color: #EDF3EC !important;
-  border-color: #D3E4D1 !important;
-  color: #346538 !important;
-}
-
-html.light .text-emerald-300,
-html.light .text-emerald-400,
-html.light .text-emerald-500,
-html.light .text-emerald-700 {
-  color: #346538 !important;
-}
-
-/* Pale Red: #FDEBEC / Text: #9F2F2D */
-html.light .bg-rose-500\/10,
-html.light .bg-rose-500\/15,
-html.light .bg-rose-500\/20,
-html.light .bg-rose-50 {
-  background-color: #FDEBEC !important;
-  border-color: #F8D1D4 !important;
-  color: #9F2F2D !important;
-}
-
-html.light .text-rose-200,
-html.light .text-rose-300,
-html.light .text-rose-400,
-html.light .text-rose-500,
-html.light .text-rose-700 {
-  color: #9F2F2D !important;
-}
-
-/* Pale Blue / Cyan: #E1F3FE / Text: #1F6C9F */
-html.light .bg-cyan-500\/10,
-html.light .bg-cyan-500\/15,
-html.light .bg-cyan-500\/20,
-html.light .bg-blue-50 {
-  background-color: #E1F3FE !important;
-  border-color: #C2E5FC !important;
-  color: #1F6C9F !important;
-}
-
-html.light .text-cyan-300,
-html.light .text-cyan-400,
-html.light .text-cyan-500,
-html.light .text-brand-cyan,
-html.light .text-blue-950,
-html.light .text-blue-700 {
-  color: #1F6C9F !important;
-}
-
-/* Pale Yellow / Amber: #FBF3DB / Text: #956400 */
-html.light .bg-amber-500\/10,
-html.light .bg-amber-500\/15,
-html.light .bg-amber-500\/20,
-html.light .bg-amber-50 {
-  background-color: #FBF3DB !important;
-  border-color: #F5E5B8 !important;
-  color: #956400 !important;
-}
-
-html.light .text-amber-300,
-html.light .text-amber-400,
-html.light .text-amber-500,
-html.light .text-amber-700 {
-  color: #956400 !important;
-}
-
-/* Pale Purple / Violet: #F3EEFA / Text: #6940A5 */
-html.light .bg-violet-500\/10,
-html.light .bg-violet-500\/15,
-html.light .bg-purple-500\/10,
-html.light .bg-purple-500\/15 {
-  background-color: #F3EEFA !important;
-  border-color: #E2D5F3 !important;
-  color: #6940A5 !important;
-}
-
-html.light .text-violet-300,
-html.light .text-violet-400,
-html.light .text-purple-400 {
-  color: #6940A5 !important;
-}
-
-/* Form inputs */
-html.light input,
-html.light select,
-html.light textarea {
-  background-color: #FFFFFF !important;
-  color: #111111 !important;
-  border-color: #EAEAEA !important;
-}
-
-html.light input::placeholder {
-  color: #999999 !important;
-}
-
-/* Subtle tactical cyber grid background */
-.soc-grid-bg {
-  background-image: linear-gradient(to right, var(--grid-line-color) 1px, transparent 1px),
-                    linear-gradient(to bottom, var(--grid-line-color) 1px, transparent 1px);
-  background-size: 32px 32px;
-}
-
-/* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 10px;
+  height: 10px;
 }
-
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
 ::-webkit-scrollbar-track {
   background: var(--scrollbar-track);
 }
 
-::-webkit-scrollbar-thumb {
-  background: var(--scrollbar-thumb);
-  border-radius: 4px;
+/* Recharts text follows the theme */
+.recharts-text tspan {
+  fill: var(--text-3);
+  font-size: 11px;
 }
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--scrollbar-thumb-hover);
-}
-
-/* Radar scanline animation */
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
-}
-
-.animate-scanline {
-  animation: scanline 8s linear infinite;
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: var(--border);
 }
