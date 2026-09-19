@@ -96,15 +96,6 @@ app/frontend/dist-ssr/
 .pydevproject
 .settings/
 
-# --- Database & Storage ---
-*.db
-*.sqlite
-*.sqlite3
-uploads/
-app/data/uploads/
-app/Backend/uploads/
-app/Backend/*.db
-app/Backend/*.sqlite*
 
 # --- Temporary Test Artifacts ---
 sample_*
