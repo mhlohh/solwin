@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getApiErrorMessage } from './api';
 
 export const DATA_API_BASE_URL =
-  import.meta.env.VITE_DATA_API_BASE_URL || 'http://localhost:8002';
+  import.meta.env.VITE_DATA_API_BASE_URL || '/data-api';
 
 const dataApi = axios.create({
   baseURL: DATA_API_BASE_URL,
