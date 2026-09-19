@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getCustomerAnalytics, getCustomerTrends } from "../services/analyticsApi";
+import { getDatasetStats, DatasetStats } from "../services/inboxApi";
 import { CustomerAnalytics, TrendResponse } from "../types/conversation";
 import { ChartSkeleton } from "../components/common/LoadingSkeleton";
 import { ErrorState } from "../components/common/ErrorState";
@@ -77,6 +78,7 @@ function ChartCard({
 export const CustomerInsights: React.FC = () => {
   const [data, setData] = useState<CustomerAnalytics | null>(null);
   const [trends, setTrends] = useState<TrendResponse | null>(null);
+  const [dataset, setDataset] = useState<DatasetStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -84,12 +86,14 @@ export const CustomerInsights: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [analyticsRes, trendsRes] = await Promise.all([
+      const [analyticsRes, trendsRes, datasetRes] = await Promise.all([
         getCustomerAnalytics(),
         getCustomerTrends(14).catch(() => null),
+        getDatasetStats().catch(() => null),
       ]);
       setData(analyticsRes);
       setTrends(trendsRes);
+      setDataset(datasetRes);
     } catch (err: any) {
       setError(err.message || "Failed to fetch customer insights.");
     } finally {
@@ -141,6 +145,9 @@ export const CustomerInsights: React.FC = () => {
             {data.total_conversations} conversations analyzed ·{" "}
             {data.unresolved_complaint_count} unresolved ·{" "}
             {data.urgent_complaint_count} urgent
+            {dataset && (
+              <> · {dataset.total_records.toLocaleString()} records ingested</>
+            )}
           </p>
         </div>
         <button
@@ -151,6 +158,82 @@ export const CustomerInsights: React.FC = () => {
           Refresh
         </button>
       </div>
+
+      {/* Ingested dataset overview (Data API) */}
+      {dataset && (
+        <div className="surface-card">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h3 className="text-sm font-semibold">Ingested feedback dataset</h3>
+            <a
+              href="/inbox"
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              Open inbox
+            </a>
+          </div>
+          <div className="grid gap-6 px-4 py-4 lg:grid-cols-2">
+            <div>
+              <p className="section-label mb-2.5">Priority tiers</p>
+              <div className="space-y-2.5">
+                {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((tier) => {
+                  const count = dataset.priority_counts[tier] || 0;
+                  const pct =
+                    dataset.total_records > 0
+                      ? Math.round((count / dataset.total_records) * 100)
+                      : 0;
+                  const bar =
+                    tier === "CRITICAL"
+                      ? "bg-danger"
+                      : tier === "HIGH"
+                      ? "bg-warn"
+                      : tier === "MEDIUM"
+                      ? "bg-accent"
+                      : "bg-line-strong";
+                  return (
+                    <div key={tier}>
+                      <div className="mb-1 flex items-center justify-between text-sm">
+                        <span className="text-text-2">
+                          {tier.charAt(0) + tier.slice(1).toLowerCase()}
+                        </span>
+                        <span className="font-medium tabular-nums text-text-1">
+                          {count.toLocaleString()} · {pct}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
+                        <div className={`h-full rounded-full ${bar}`} style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="h-64">
+              <p className="section-label mb-2.5">Top intents across {dataset.total_records.toLocaleString()} records</p>
+              {dataset.top_intents.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={dataset.top_intents.map(({ issue, count }) => ({
+                      issue,
+                      count,
+                    }))}
+                    layout="vertical"
+                    margin={{ left: 8, right: 16 }}
+                  >
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis dataKey="issue" type="category" width={150} />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--inset)" }} />
+                    <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-text-3">
+                  No intent data available.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard

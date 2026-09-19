@@ -33,6 +33,19 @@ export interface InboxPage {
   items: InboxTicket[];
 }
 
+export interface PhishingTechniqueFrequency {
+  technique: string;
+  count: number;
+}
+
+export interface DatasetStats {
+  total_records: number;
+  phishing_flagged: number;
+  priority_counts: Record<string, number>;
+  top_intents: { issue: string; count: number }[];
+  phishing_techniques: PhishingTechniqueFrequency[];
+}
+
 export interface InboxFacets {
   total: number;
   phishing: number;
@@ -61,6 +74,26 @@ export async function getTicket(id: number): Promise<InboxTicket> {
 
 export async function getFacets(): Promise<InboxFacets> {
   const { data } = await dataApi.get<InboxFacets>('/tickets/facets');
+  return data;
+}
+
+export async function getDatasetStats(): Promise<DatasetStats> {
+  const { data } = await dataApi.get<DatasetStats>('/tickets/stats');
+  return data;
+}
+
+export interface DatasetPhishingQuery {
+  skip?: number;
+  limit?: number;
+  search?: string;
+}
+
+export async function listPhishingTickets(
+  params: DatasetPhishingQuery = {}
+): Promise<InboxPage> {
+  const { data } = await dataApi.get<InboxPage>('/tickets', {
+    params: { phishing: true, ...params },
+  });
   return data;
 }
 

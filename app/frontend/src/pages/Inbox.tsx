@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -7,7 +8,6 @@ import {
   RefreshCw,
   Search,
   ShieldAlert,
-  ShieldCheck,
   SlidersHorizontal,
 } from 'lucide-react';
 import {
@@ -18,8 +18,22 @@ import {
   InboxFacets,
   InboxTicket,
 } from '../services/inboxApi';
+import {
+  getStoredReview,
+  analyzeInboxTicket,
+  inboxReviewId,
+  CustomerReviewIntelligence,
+} from '../services/reviewApi';
 import { LineSkeleton } from '../components/common/LoadingSkeleton';
 import { ErrorState } from '../components/common/ErrorState';
+import { RiskBadge } from '../components/common/RiskBadge';
+import {
+  Sparkles,
+  BrainCircuit,
+  ShieldCheck,
+  Loader2,
+  AlertTriangle,
+} from 'lucide-react';
 
 const PAGE_SIZE = 20;
 
@@ -69,7 +83,135 @@ function senderName(email: string): string {
   return at > 0 ? email.slice(0, at) : email || 'Unknown sender';
 }
 
+const SENTIMENT_TONE: Record<string, string> = {
+  POSITIVE: 'text-ok',
+  NEUTRAL: 'text-text-2',
+  NEGATIVE: 'text-danger',
+};
+
+const URGENCY_TONE: Record<string, string> = {
+  CRITICAL: 'text-danger',
+  HIGH: 'text-warn',
+  MEDIUM: 'text-accent',
+  LOW: 'text-text-2',
+};
+
+const AIIntelCard: React.FC<{
+  intel: CustomerReviewIntelligence;
+  onReanalyze: () => void;
+  analyzing: boolean;
+}> = ({ intel, onReanalyze, analyzing }) => {
+  const c = intel.classification;
+  const s = intel.sentiment;
+  const sec = intel.security;
+  return (
+    <div className="rounded-lg border border-accent-line bg-accent-weak/40 px-4 py-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
+          <Sparkles size={13} /> AI intelligence
+        </p>
+        <button
+          onClick={onReanalyze}
+          disabled={analyzing}
+          className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-text-2 hover:bg-elevated hover:text-text-1 disabled:opacity-50"
+          title="Re-run analysis (uses the stored result when available)"
+        >
+          {analyzing ? <Loader2 size={12} className="animate-spin" /> : <BrainCircuit size={12} />}
+          Re-analyze
+        </button>
+      </div>
+
+      <div className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+        <div>
+          <span className="text-xs text-text-3">Sentiment</span>
+          <p className={`font-medium ${SENTIMENT_TONE[s.label] || ''}`}>
+            {s.label.toLowerCase()} ({s.score.toFixed(2)})
+          </p>
+        </div>
+        <div>
+          <span className="text-xs text-text-3">Urgency</span>
+          <p className={`font-medium ${URGENCY_TONE[intel.urgency.level] || ''}`}>
+            {intel.urgency.level.toLowerCase()} ({intel.urgency.score.toFixed(2)})
+          </p>
+        </div>
+        <div>
+          <span className="text-xs text-text-3">Category</span>
+          <p className="font-medium text-text-1">
+            {c.category.replace(/_/g, ' ').toLowerCase()}
+            <span className="ml-1 text-xs font-normal text-text-3">
+              {(c.confidence * 100).toFixed(0)}%
+            </span>
+          </p>
+        </div>
+        <div>
+          <span className="text-xs text-text-3">Intent</span>
+          <p className="truncate font-medium text-text-1" title={c.fine_grained_intent}>
+            {c.fine_grained_intent || '—'}
+          </p>
+        </div>
+        <div>
+          <span className="text-xs text-text-3">Resolution</span>
+          <p className="font-medium text-text-1">
+            {intel.resolution.status.replace(/_/g, ' ').toLowerCase()}
+          </p>
+        </div>
+        <div>
+          <span className="text-xs text-text-3">Cluster</span>
+          <p className="truncate font-medium text-text-1" title={intel.clustering.cluster_name}>
+            {intel.clustering.cluster_name || '—'}
+          </p>
+        </div>
+      </div>
+
+      {intel.summary.text && (
+        <p className="mt-3 border-t border-accent-line pt-2.5 text-sm leading-relaxed text-text-1">
+          {intel.summary.text}
+        </p>
+      )}
+
+      {(sec.social_engineering.detected || sec.urls.length > 0 || sec.email_addresses.length > 0) && (
+        <div className="mt-3 border-t border-accent-line pt-2.5">
+          <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-warn">
+            <ShieldCheck size={13} /> Security scan
+          </p>
+          <div className="mt-1.5 space-y-1 text-sm">
+            {sec.social_engineering.detected && (
+              <p className="text-warn">
+                Social engineering: {sec.social_engineering.techniques.map((t) => t.toLowerCase().replace(/_/g, ' ')).join(', ')}
+              </p>
+            )}
+            {sec.urls.map((u, i) => (
+              <p key={i} className="truncate text-danger" title={u.url}>
+                <AlertTriangle size={11} className="mr-1 inline" />{u.url}
+              </p>
+            ))}
+            {sec.email_addresses.map((e, i) => (
+              <p key={i} className="truncate text-danger" title={e.email}>
+                <AlertTriangle size={11} className="mr-1 inline" />{e.email}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-3 flex items-center justify-between gap-3 border-t border-accent-line pt-2.5">
+        <div className="min-w-0">
+          <span className="text-xs text-text-3">Recommended action</span>
+          <p className="truncate text-sm font-medium text-text-1" title={intel.recommendation.rationale}>
+            {intel.recommendation.primary_action.replace(/_/g, ' ').toLowerCase()}
+          </p>
+        </div>
+        <RiskBadge level={intel.overall_risk.level} size="sm" />
+      </div>
+      <p className="mt-1.5 text-right text-xs text-text-3">
+        {intel.processing.processing_time_ms.toFixed(0)}ms · {intel.model_metadata.sentiment_model}
+      </p>
+    </div>
+  );
+};
+
 export const Inbox: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [tickets, setTickets] = useState<InboxTicket[]>([]);
   const [total, setTotal] = useState(0);
   const [facets, setFacets] = useState<InboxFacets | null>(null);
@@ -85,6 +227,10 @@ export const Inbox: React.FC = () => {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [selected, setSelected] = useState<InboxTicket | null>(null);
   const [selectedLoading, setSelectedLoading] = useState(false);
+  const [intel, setIntel] = useState<CustomerReviewIntelligence | null>(null);
+  const [intelLoading, setIntelLoading] = useState(false);
+  const [intelError, setIntelError] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   const fetchPage = useCallback(async () => {
@@ -120,6 +266,17 @@ export const Inbox: React.FC = () => {
       .catch(() => setFacets(null));
   }, []);
 
+  // Deep link: /inbox?ticket=123 opens that record in the reading pane.
+  const deepLinkTicket = searchParams.get('ticket');
+  const openedDeepLink = useRef<number | null>(null);
+  useEffect(() => {
+    if (deepLinkTicket && openedDeepLink.current !== Number(deepLinkTicket)) {
+      openedDeepLink.current = Number(deepLinkTicket);
+      openTicket(Number(deepLinkTicket));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkTicket]);
+
   // NOTE: dataset channel values vary ("Email", "email_chat"…) so channel
   // filtering is done client-side per page; server supports search/intent/phishing.
   const visibleTickets = useMemo(
@@ -133,17 +290,50 @@ export const Inbox: React.FC = () => {
   useEffect(() => {
     setSelectedId(null);
     setSelected(null);
+    setIntel(null);
+    setIntelError(null);
   }, [page, tab, channel, priority, intent, search]);
+
+  const runAnalysis = useCallback(async () => {
+    if (!selected) return;
+    setAnalyzing(true);
+    setIntelError(null);
+    try {
+      const result = await analyzeInboxTicket({
+        ticketId: selected.id,
+        message: selected.message,
+        subject: selected.subject,
+        domain: selected.domain || 'E-commerce/Retail',
+        channel: selected.channel || 'Email',
+      });
+      setIntel(result);
+    } catch (err) {
+      setIntelError(getApiErrorMessage(err, 'Analysis failed.'));
+    } finally {
+      setAnalyzing(false);
+    }
+  }, [selected]);
 
   const openTicket = useCallback(async (id: number) => {
     setSelectedId(id);
     setSelectedLoading(true);
+    setIntel(null);
+    setIntelError(null);
     try {
-      setSelected(await getTicket(id));
+      const ticket = await getTicket(id);
+      setSelected(ticket);
+      // Load AI intelligence: show the stored result immediately when present;
+      // otherwise the pane offers on-demand analysis.
+      setIntelLoading(true);
+      const stored = await getStoredReview(inboxReviewId(id)).catch(() => null);
+      if (stored) {
+        setIntel(stored);
+      }
     } catch {
       setSelected(null);
     } finally {
       setSelectedLoading(false);
+      setIntelLoading(false);
     }
   }, []);
 
@@ -392,6 +582,47 @@ export const Inbox: React.FC = () => {
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-text-1">
                   {selected.message || '(empty message)'}
                 </p>
+
+                {/* AI intelligence */}
+                {intel && (
+                  <AIIntelCard
+                    intel={intel}
+                    analyzing={analyzing}
+                    onReanalyze={runAnalysis}
+                  />
+                )}
+                {intelLoading && (
+                  <div className="flex items-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm text-text-2">
+                    <Loader2 size={14} className="animate-spin" />
+                    Checking for stored AI analysis…
+                  </div>
+                )}
+                {!intel && !intelLoading && (
+                  <div className="rounded-lg border border-dashed border-line px-4 py-3">
+                    {intelError ? (
+                      <p className="text-sm text-danger">{intelError}</p>
+                    ) : (
+                      <p className="text-sm text-text-2">
+                        No AI analysis for this message yet.
+                      </p>
+                    )}
+                    <button
+                      onClick={runAnalysis}
+                      disabled={analyzing || selectedLoading}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-line bg-card px-3 py-1.5 text-sm font-medium hover:bg-elevated disabled:opacity-50"
+                    >
+                      {analyzing ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" /> Analyzing…
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={13} /> Analyze with AI
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 <dl className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-line pt-4 text-sm">
                   <div>

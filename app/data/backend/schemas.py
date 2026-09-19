@@ -72,8 +72,13 @@ class IntentFrequency(BaseModel):
     issue: str
     count: int
 
+class TechniqueFrequency(BaseModel):
+    technique: str
+    count: int
+
 class TicketStatsResponse(BaseModel):
     total_records: int
     phishing_flagged: int
     priority_counts: dict[str, int]
     top_intents: List[IntentFrequency]
+    phishing_techniques: List[TechniqueFrequency] = []

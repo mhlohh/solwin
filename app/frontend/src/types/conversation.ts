@@ -17,18 +17,6 @@ export interface User {
   created_at: string;
 }
 
-export interface AuthCredentials {
-  email: string;
-  password: string;
-}
-
-export interface TokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-  user: User;
-}
-
 export interface Message {
   id: string;
   conversation_id: string;

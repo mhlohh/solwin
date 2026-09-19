@@ -96,12 +96,23 @@ def get_ticket_stats(db: Session, top_intents_limit: int = 8) -> dict:
         .limit(top_intents_limit)
         .all()
     )
+    technique_rows = (
+        db.query(models.Ticket.technique, func.count(models.Ticket.id).label("n"))
+        .filter(models.Ticket.phishing == True)  # noqa: E712
+        .filter(models.Ticket.technique.isnot(None), models.Ticket.technique != "")
+        .group_by(models.Ticket.technique)
+        .order_by(desc("n"))
+        .all()
+    )
     return {
         "total_records": total,
         "phishing_flagged": phishing_count,
         "priority_counts": priority_counts,
         "top_intents": [
             {"issue": row[0], "count": row[1]} for row in intent_rows
+        ],
+        "phishing_techniques": [
+            {"technique": row[0], "count": row[1]} for row in technique_rows
         ],
     }
 

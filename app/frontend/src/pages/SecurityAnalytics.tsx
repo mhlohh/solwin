@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getSecurityAnalytics, getSecurityTrends } from "../services/analyticsApi";
+import { getDatasetStats, DatasetStats } from "../services/inboxApi";
 import {
   SecurityAnalytics as SecAnalyticsType,
   TrendResponse,
@@ -57,6 +58,7 @@ function ChartCard({
 export const SecurityAnalytics: React.FC = () => {
   const [data, setData] = useState<SecAnalyticsType | null>(null);
   const [trends, setTrends] = useState<TrendResponse | null>(null);
+  const [dataset, setDataset] = useState<DatasetStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,12 +66,14 @@ export const SecurityAnalytics: React.FC = () => {
     setIsLoading(true);
     setError(null);
     try {
-      const [analyticsRes, trendsRes] = await Promise.all([
+      const [analyticsRes, trendsRes, datasetRes] = await Promise.all([
         getSecurityAnalytics(),
         getSecurityTrends(14).catch(() => null),
+        getDatasetStats().catch(() => null),
       ]);
       setData(analyticsRes);
       setTrends(trendsRes);
+      setDataset(datasetRes);
     } catch (err: any) {
       setError(err.message || "Failed to fetch security analytics.");
     } finally {
@@ -160,6 +164,77 @@ export const SecurityAnalytics: React.FC = () => {
           tone={data.suspicious_email_count > 0 ? "warn" : "neutral"}
         />
       </div>
+
+      {/* Ingested dataset phishing (Data API) */}
+      {dataset && (
+        <div className="surface-card">
+          <div className="flex items-center justify-between border-b border-line px-4 py-3">
+            <h3 className="text-sm font-semibold">
+              Ingested dataset · phishing intelligence
+            </h3>
+            <a
+              href="/threats?source=dataset"
+              className="text-sm font-medium text-accent hover:underline"
+            >
+              View records
+            </a>
+          </div>
+          <div className="px-4 py-4">
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              <KpiCard
+                label="Records scanned"
+                value={dataset.total_records.toLocaleString()}
+              />
+              <KpiCard
+                label="Phishing flagged"
+                value={dataset.phishing_flagged.toLocaleString()}
+                tone={dataset.phishing_flagged > 0 ? "danger" : "neutral"}
+              />
+              <KpiCard
+                label="Phishing rate"
+                value={
+                  dataset.total_records > 0
+                    ? `${((dataset.phishing_flagged / dataset.total_records) * 100).toFixed(2)}%`
+                    : "0%"
+                }
+                tone="warn"
+              />
+              <KpiCard
+                label="Techniques seen"
+                value={dataset.phishing_techniques.length.toLocaleString()}
+              />
+            </div>
+            {dataset.phishing_techniques.length > 0 && (
+              <div className="mt-5">
+                <p className="section-label mb-2.5">Attack techniques across flagged records</p>
+                <div className="grid gap-x-8 gap-y-2.5 sm:grid-cols-2">
+                  {dataset.phishing_techniques.slice(0, 10).map(({ technique, count }) => {
+                    const max = dataset.phishing_techniques[0]?.count || 1;
+                    return (
+                      <div key={technique}>
+                        <div className="mb-1 flex items-center justify-between gap-3 text-sm">
+                          <span className="truncate text-text-2" title={technique}>
+                            {technique}
+                          </span>
+                          <span className="shrink-0 font-medium tabular-nums text-text-1">
+                            {count}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full overflow-hidden rounded-full bg-inset">
+                          <div
+                            className="h-full rounded-full bg-warn"
+                            style={{ width: `${Math.round((count / max) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard title="Threats over time" subtitle="Confirmed threats per day, last 14 days">

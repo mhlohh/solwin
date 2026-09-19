@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { getThreats } from "../services/securityApi";
+import {
+  listPhishingTickets,
+  InboxTicket,
+  getFacets,
+  InboxFacets,
+} from "../services/inboxApi";
 import { Threat, ThreatFilterParams } from "../types/conversation";
 import { DataTable, Column } from "../components/common/DataTable";
 import { RiskBadge } from "../components/common/RiskBadge";
 import { SearchBar } from "../components/common/SearchBar";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, ShieldAlert } from "lucide-react";
 
 const RISK_OPTIONS = ["", "CRITICAL", "HIGH", "MEDIUM", "LOW"];
 
@@ -18,7 +24,7 @@ const RISK_LABELS: Record<string, string> = {
 };
 
 function formatTime(iso: string): string {
-  const d = new Date(iso);
+  const d = new Date(iso.endsWith("Z") ? iso : iso + "Z");
   if (Number.isNaN(d.getTime())) return "";
   return d.toLocaleString(undefined, {
     month: "short",
@@ -28,35 +34,71 @@ function formatTime(iso: string): string {
   });
 }
 
+type Source = "engine" | "dataset";
+
 export const Threats: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  const [source, setSource] = useState<Source>(
+    searchParams.get("source") === "dataset" ? "dataset" : "engine"
+  );
+
+  // Engine detections (Backend security engine)
   const [threats, setThreats] = useState<Threat[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
 
+  // Dataset phishing records (Data API)
+  const [phishingRows, setPhishingRows] = useState<InboxTicket[]>([]);
+  const [dTotal, setDTotal] = useState(0);
+  const [dPage, setDPage] = useState(1);
+  const [dTotalPages, setDTotalPages] = useState(1);
+  const [facets, setFacets] = useState<InboxFacets | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get("search") || "");
   const [riskLevel, setRiskLevel] = useState(searchParams.get("risk") || "");
+
+  useEffect(() => {
+    getFacets()
+      .then(setFacets)
+      .catch(() => setFacets(null));
+  }, []);
 
   const load = async () => {
     setIsLoading(true);
     try {
-      const params: ThreatFilterParams = {
-        risk_level: (riskLevel as any) || undefined,
-        search: search || undefined,
-        page,
-        page_size: 10,
-      };
-      const res = await getThreats(params);
-      setThreats(res.items);
-      setTotal(res.total);
-      setTotalPages(res.total_pages);
+      if (source === "engine") {
+        const params: ThreatFilterParams = {
+          risk_level: (riskLevel as any) || undefined,
+          search: search || undefined,
+          page,
+          page_size: 10,
+        };
+        const res = await getThreats(params);
+        setThreats(res.items);
+        setTotal(res.total);
+        setTotalPages(res.total_pages);
+      } else {
+        const res = await listPhishingTickets({
+          skip: (dPage - 1) * 10,
+          limit: 10,
+          search: search || undefined,
+        });
+        setPhishingRows(res.items);
+        setDTotal(res.total);
+        setDTotalPages(Math.max(1, Math.ceil(res.total / 10)));
+      }
     } catch {
-      setThreats([]);
-      setTotal(0);
+      if (source === "engine") {
+        setThreats([]);
+        setTotal(0);
+      } else {
+        setPhishingRows([]);
+        setDTotal(0);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -65,9 +107,15 @@ export const Threats: React.FC = () => {
   useEffect(() => {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, riskLevel, page]);
+  }, [search, riskLevel, page, dPage, source]);
 
-  const columns: Column<Threat>[] = [
+  const switchSource = (next: Source) => {
+    setSource(next);
+    setPage(1);
+    setDPage(1);
+  };
+
+  const engineColumns: Column<Threat>[] = [
     {
       key: "threat_type",
       header: "Classification",
@@ -125,13 +173,73 @@ export const Threats: React.FC = () => {
     },
   ];
 
+  const datasetColumns: Column<InboxTicket>[] = [
+    {
+      key: "subject",
+      header: "Message",
+      render: (item) => (
+        <div className="max-w-[380px]">
+          <div className="truncate text-sm font-medium text-text-1">
+            {item.subject || "(no subject)"}
+          </div>
+          <div className="truncate text-xs text-text-3" title={item.message}>
+            {item.message}
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "intent",
+      header: "Intent",
+      render: (item) => (
+        <span className="text-sm text-text-2">{item.intent || "—"}</span>
+      ),
+    },
+    {
+      key: "technique",
+      header: "Technique",
+      render: (item) => (
+        <span
+          className="block max-w-[200px] truncate text-sm text-warn"
+          title={item.technique || ""}
+        >
+          {item.technique || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "sender",
+      header: "Sender",
+      render: (item) => (
+        <span className="block max-w-[180px] truncate text-sm text-text-2" title={item.sender}>
+          {item.sender || "—"}
+        </span>
+      ),
+    },
+    {
+      key: "created_at",
+      header: "Ingested",
+      render: (item) => (
+        <span className="whitespace-nowrap text-sm text-text-2">
+          {formatTime(item.created_at)}
+        </span>
+      ),
+    },
+  ];
+
+  const isEngine = source === "engine";
+
   return (
     <div className="space-y-4 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Threats</h1>
           <p className="text-sm text-text-2">
-            {total} record{total === 1 ? "" : "s"} from the security engine
+            {isEngine
+              ? `${total} record${total === 1 ? "" : "s"} from the security engine`
+              : `${(facets?.phishing ?? dTotal).toLocaleString()} phishing record${
+                  (facets?.phishing ?? dTotal) === 1 ? "" : "s"
+                } in the ingested dataset`}
           </p>
         </div>
         <button
@@ -143,43 +251,81 @@ export const Threats: React.FC = () => {
         </button>
       </div>
 
+      {/* Source toggle */}
+      <div className="flex w-fit rounded-lg border border-line bg-card p-0.5">
+        <button
+          onClick={() => switchSource("engine")}
+          className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            isEngine ? "bg-accent-weak text-accent" : "text-text-2 hover:text-text-1"
+          }`}
+        >
+          Engine detections
+          <span className="ml-1.5 text-xs text-text-3">{total.toLocaleString()}</span>
+        </button>
+        <button
+          onClick={() => switchSource("dataset")}
+          className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+            !isEngine ? "bg-accent-weak text-accent" : "text-text-2 hover:text-text-1"
+          }`}
+        >
+          <ShieldAlert size={14} className={!isEngine ? "text-danger" : "text-text-3"} />
+          Dataset phishing
+          <span className="ml-0.5 text-xs text-text-3">
+            {(facets?.phishing ?? 0).toLocaleString()}
+          </span>
+        </button>
+      </div>
+
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
         <SearchBar
-          placeholder="Search threat records…"
+          placeholder={
+            isEngine ? "Search threat records…" : "Search phishing messages…"
+          }
           value={search}
           onChange={(val) => {
             setSearch(val);
             setPage(1);
+            setDPage(1);
           }}
           className="sm:max-w-sm sm:flex-1"
         />
-        <select
-          value={riskLevel}
-          onChange={(e) => {
-            setRiskLevel(e.target.value);
-            setPage(1);
-          }}
-          className="rounded-lg border border-line bg-card px-2.5 py-2 text-sm text-text-1 hover:border-line-strong focus:border-accent focus:outline-none"
-        >
-          {RISK_OPTIONS.map((opt) => (
-            <option key={opt} value={opt}>
-              {RISK_LABELS[opt]}
-            </option>
-          ))}
-        </select>
+        {isEngine && (
+          <select
+            value={riskLevel}
+            onChange={(e) => {
+              setRiskLevel(e.target.value);
+              setPage(1);
+            }}
+            className="rounded-lg border border-line bg-card px-2.5 py-2 text-sm text-text-1 hover:border-line-strong focus:border-accent focus:outline-none"
+          >
+            {RISK_OPTIONS.map((opt) => (
+              <option key={opt} value={opt}>
+                {RISK_LABELS[opt]}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
-      <DataTable
-        columns={columns}
-        data={threats}
+      <DataTable<Threat | InboxTicket>
+        columns={(isEngine ? engineColumns : datasetColumns) as Column<Threat | InboxTicket>[]}
+        data={(isEngine ? threats : phishingRows) as (Threat | InboxTicket)[]}
         isLoading={isLoading}
-        emptyTitle="No threat records"
-        emptyDescription="Records appear here after the security engine analyzes conversations."
-        currentPage={page}
-        totalPages={totalPages}
-        totalItems={total}
-        onPageChange={(p) => setPage(p)}
-        onRowClick={(item) => navigate(`/threats/${item.id}`)}
+        emptyTitle={isEngine ? "No threat records" : "No phishing records match"}
+        emptyDescription={
+          isEngine
+            ? "Records appear here after the security engine analyzes conversations."
+            : "Try a different search term."
+        }
+        currentPage={isEngine ? page : dPage}
+        totalPages={isEngine ? totalPages : dTotalPages}
+        totalItems={isEngine ? total : dTotal}
+        onPageChange={(p) => (isEngine ? setPage(p) : setDPage(p))}
+        onRowClick={
+          isEngine
+            ? (item) => navigate(`/threats/${item.id}`)
+            : (item) => navigate(`/inbox?ticket=${item.id}`)
+        }
       />
     </div>
   );

@@ -100,6 +100,11 @@ def clean_csv_data(file_path: Optional[str] = None) -> pd.DataFrame:
         if col in df.columns:
             df[col] = df[col].astype(str).map(normalize_text)
 
+    # Nullable columns: astype(str) turns NaN into the literal "nan" — blank them
+    for col in ("sender", "technique", "label"):
+        if col in df.columns:
+            df[col] = df[col].replace({"nan": "", "none": "", "null": ""})
+
     # Deduplicate
     initial_count = len(df)
     dedup_subset = [c for c in ["message", "subject", "intent", "issue"] if c in df.columns]
