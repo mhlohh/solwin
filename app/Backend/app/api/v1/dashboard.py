@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import require_role
+from app.models.enums import UserRole
 from app.schemas.analytics import (
     CustomerAnalyticsResponse,
     DashboardOverviewResponse,
@@ -14,10 +16,19 @@ from app.schemas.analytics import (
 )
 from app.services.analytics_service import AnalyticsService
 
-# Router for dashboard overview
+# Router for dashboard overview (Support Manager, Security Analyst, Admin)
 dashboard_router = APIRouter(
     prefix="/dashboard",
     tags=["Dashboard"],
+    dependencies=[
+        Depends(
+            require_role(
+                UserRole.SUPPORT_MANAGER,
+                UserRole.SECURITY_ANALYST,
+                UserRole.ADMIN,
+            )
+        )
+    ],
 )
 
 # Router for deep customer and security analytics
@@ -58,6 +69,7 @@ def get_dashboard_overview(db: Session = Depends(get_db)):
         "Retrieve detailed customer support metrics including sentiment, category, "
         "priority, and resolution distributions, along with top reported issues."
     ),
+    dependencies=[Depends(require_role(UserRole.SUPPORT_MANAGER, UserRole.ADMIN))],
 )
 def get_customer_analytics(db: Session = Depends(get_db)):
     return AnalyticsService.get_customer_analytics(db=db)
@@ -72,6 +84,7 @@ def get_customer_analytics(db: Session = Depends(get_db)):
         "Retrieve the most frequently occurring customer issues "
         "from analysis records."
     ),
+    dependencies=[Depends(require_role(UserRole.SUPPORT_MANAGER, UserRole.ADMIN))],
 )
 def get_top_issues(
     limit: int = Query(
@@ -94,6 +107,7 @@ def get_top_issues(
         "Retrieve conversation counts grouped by UTC date for "
         "the specified number of days."
     ),
+    dependencies=[Depends(require_role(UserRole.SUPPORT_MANAGER, UserRole.ADMIN))],
 )
 def get_customer_trends(
     days: int = Query(
@@ -121,6 +135,7 @@ def get_customer_trends(
         "Retrieve security metrics including threat detection counts, risk levels, "
         "technique frequency, suspicious link counts, and recent critical threats."
     ),
+    dependencies=[Depends(require_role(UserRole.SECURITY_ANALYST, UserRole.ADMIN))],
 )
 def get_security_analytics(db: Session = Depends(get_db)):
     return AnalyticsService.get_security_analytics(db=db)
@@ -132,6 +147,7 @@ def get_security_analytics(db: Session = Depends(get_db)):
     status_code=status.HTTP_200_OK,
     summary="Get recent security threats",
     description="Retrieve the most recent confirmed threats for security team review.",
+    dependencies=[Depends(require_role(UserRole.SECURITY_ANALYST, UserRole.ADMIN))],
 )
 def get_recent_threats(
     limit: int = Query(
@@ -154,6 +170,7 @@ def get_recent_threats(
         "Retrieve confirmed threat counts grouped by UTC date for "
         "the specified number of days."
     ),
+    dependencies=[Depends(require_role(UserRole.SECURITY_ANALYST, UserRole.ADMIN))],
 )
 def get_security_trends(
     days: int = Query(

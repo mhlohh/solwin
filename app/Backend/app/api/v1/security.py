@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import require_role
+from app.models.enums import UserRole
 from app.schemas.threat import (
     ConversationSecurityResponse,
     SecurityAnalysisRequest,
@@ -16,6 +18,15 @@ from app.services.security.risk_engine import RiskEngine
 router = APIRouter(
     prefix="/security",
     tags=["Security Intelligence"],
+    dependencies=[
+        Depends(
+            require_role(
+                UserRole.SECURITY_ANALYST,
+                UserRole.SUPPORT_MANAGER,
+                UserRole.ADMIN,
+            )
+        )
+    ],
 )
 
 

@@ -101,33 +101,3 @@ def decode_access_token(token: str) -> Dict[str, Any]:
         raise ValueError("Token has expired.") from exc
     except jwt.InvalidTokenError as exc:
         raise ValueError("Invalid authentication token.") from exc
-
-
-def get_default_user():
-    """Return default active admin user for public unauthenticated access."""
-    import uuid
-    from app.models.enums import UserRole
-    from app.models.user import User
-
-    now = datetime.now(timezone.utc)
-    return User(
-        id=uuid.UUID("00000000-0000-0000-0000-000000000001"),
-        email="admin@solwin.ai",
-        full_name="Solwin Administrator",
-        hashed_password="",
-        role=UserRole.ADMIN,
-        is_active=True,
-        created_at=now,
-        updated_at=now,
-    )
-
-
-def get_current_user():
-    """Dependency returning current user (default admin)."""
-    return get_default_user()
-
-
-def get_current_active_user():
-    """Dependency returning current active user."""
-    return get_default_user()
-

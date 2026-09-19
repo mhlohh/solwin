@@ -1,53 +1,29 @@
-import os
-import sys
-from typing import Optional
-
-# Ensure app/data can be imported from repo root
-_repo_root = os.path.dirname(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-)
-_data_dir = os.path.join(_repo_root, "data")
-if _data_dir not in sys.path:
-    sys.path.insert(0, _data_dir)
-
-try:
-    from backend.clean_data import build_complaint_text, normalize_text
-except ImportError:
-    try:
-        from app.data.backend.clean_data import build_complaint_text, normalize_text
-    except ImportError:
-        import re
-        import unicodedata
-
-        def normalize_text(text: Optional[str]) -> str:
-            if not text:
-                return ""
-            normalized = unicodedata.normalize("NFKC", str(text))
-            normalized = re.sub(r"[\r\n\t]+", " ", normalized)
-            normalized = re.sub(r"\s+", " ", normalized)
-            return normalized.strip()
-
-        def build_complaint_text(
-            message: Optional[str],
-            subject: Optional[str] = None,
-            max_length: int = 10_000,
-        ) -> str:
-            clean_subj = normalize_text(subject)
-            clean_msg = normalize_text(message)
-            if clean_subj and clean_msg:
-                combined = f"{clean_subj} {clean_msg}"
-            elif clean_subj:
-                combined = clean_subj
-            else:
-                combined = clean_msg
-            if len(combined) > max_length:
-                combined = combined[:max_length].rstrip()
-            return combined
+import re
+import unicodedata
 
 
 def clean_text(text: str) -> str:
-    """Lightweight text preprocessor using canonical data cleaning."""
-    return normalize_text(text)
+    """Lightweight text preprocessor for conversation content.
 
+    - Normalizes unicode characters
+    - Normalizes whitespace (replaces tabs, multiple spaces, blank lines)
+    - Removes non-printable control characters
+    - Preserves URLs, email addresses, and punctuation essential for analysis
+    """
+    if not text:
+        return ""
 
-__all__ = ["build_complaint_text", "clean_text", "normalize_text"]
+    # Normalize unicode to NFKC
+    text = unicodedata.normalize("NFKC", text)
+
+    # Remove non-printable control characters except newline and tab
+    # \x00-\x08, \x0b, \x0c, \x0e-\x1f, \x7f-\x9f
+    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
+
+    # Normalize horizontal whitespace (tabs and spaces) into single spaces
+    text = re.sub(r"[ \t]+", " ", text)
+
+    # Normalize excessive newlines (more than 2 consecutive newlines)
+    text = re.sub(r"\n\s*\n\s*\n+", "\n\n", text)
+
+    return text.strip()

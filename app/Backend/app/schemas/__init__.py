@@ -15,10 +15,25 @@ from app.schemas.analytics import (
     TrendPoint,
     TrendResponse,
 )
+from app.schemas.attachment import (
+    AttachmentBase,
+    AttachmentRead,
+    MultimodalAnalysisOutput,
+)
 from app.schemas.auth import (
     CurrentUserResponse,
     LoginRequest,
     TokenResponse,
+)
+from app.schemas.campaign import (
+    CampaignDetailResponse,
+    CampaignListResponse,
+    CampaignRadarResponse,
+    CampaignRead,
+    CampaignStatusUpdate,
+    CampaignSummary,
+    CampaignThreatRead,
+    SharedIndicators,
 )
 from app.schemas.conversation import (
     ConversationBase,
@@ -34,10 +49,6 @@ from app.schemas.message import (
     MessageUpdate,
 )
 from app.schemas.pagination import PaginatedResponse
-from app.schemas.review import (
-    CustomerReviewCreateRequest,
-    CustomerReviewOutput,
-)
 from app.schemas.threat import (
     ConversationSecurityResponse,
     SecurityAnalysisRequest,
@@ -65,6 +76,15 @@ __all__ = [
     "AnalysisCreate",
     "AnalysisRead",
     "AnalysisUpdate",
+    "AttachmentBase",
+    "AttachmentRead",
+    "CampaignDetailResponse",
+    "CampaignListResponse",
+    "CampaignRadarResponse",
+    "CampaignRead",
+    "CampaignStatusUpdate",
+    "CampaignSummary",
+    "CampaignThreatRead",
     "ConversationAnalysisResponse",
     "ConversationBase",
     "ConversationCreate",
@@ -75,8 +95,6 @@ __all__ = [
     "CustomerAnalyticsResponse",
     "CustomerIntelligenceOutput",
     "CustomerIntelligenceSummary",
-    "CustomerReviewCreateRequest",
-    "CustomerReviewOutput",
     "CurrentUserResponse",
     "DashboardOverviewResponse",
     "DirectMessageAnalysisRequest",
@@ -86,11 +104,13 @@ __all__ = [
     "MessageCreate",
     "MessageRead",
     "MessageUpdate",
+    "MultimodalAnalysisOutput",
     "PaginatedResponse",
     "RecentThreat",
     "SecurityAnalysisRequest",
     "SecurityAnalyticsResponse",
     "SecurityIntelligenceSummary",
+    "SharedIndicators",
     "ThreatBase",
     "ThreatCreate",
     "ThreatRead",
@@ -105,4 +125,3 @@ __all__ = [
     "UserRead",
     "UserUpdate",
 ]
-

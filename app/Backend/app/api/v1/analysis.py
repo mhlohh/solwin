@@ -4,6 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import require_role
+from app.models.enums import UserRole
 from app.schemas.analysis import AnalysisRead, ConversationAnalysisResponse
 from app.services.ai.customer_intelligence import (
     CustomerIntelligenceError,
@@ -14,6 +16,15 @@ from app.services.conversation_service import ConversationService
 router = APIRouter(
     prefix="/analysis",
     tags=["Customer Intelligence"],
+    dependencies=[
+        Depends(
+            require_role(
+                UserRole.SUPPORT_AGENT,
+                UserRole.SUPPORT_MANAGER,
+                UserRole.ADMIN,
+            )
+        )
+    ],
 )
 
 

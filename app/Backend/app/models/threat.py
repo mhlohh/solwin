@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 
 if TYPE_CHECKING:
+    from app.models.campaign import Campaign
     from app.models.conversation import Conversation
 
 
@@ -23,6 +24,12 @@ class Threat(Base):
     conversation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("conversations.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    campaign_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("campaigns.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -85,4 +92,7 @@ class Threat(Base):
         "Conversation",
         back_populates="threat_records",
     )
-
+    campaign: Mapped[Optional["Campaign"]] = relationship(
+        "Campaign",
+        back_populates="threats",
+    )

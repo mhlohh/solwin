@@ -26,6 +26,9 @@ from app.services.ai.customer_intelligence import (
     CustomerIntelligenceError,
     CustomerIntelligenceService,
 )
+from app.services.ai.multimodal import MultimodalService
+from app.services.attachments.local_storage import get_storage_backend
+from app.services.campaign.campaign_service import CampaignService
 from app.services.conversation_service import ConversationService
 from app.services.security.risk_engine import (
     RiskEngine,
@@ -208,8 +211,46 @@ class UnifiedIntelligenceService:
                 status_code=400,
             )
 
-        # 2. Run Customer Intelligence
+        # 2. Run Customer Intelligence & Multimodal Attachment Intelligence
         ai_service = CustomerIntelligenceService()
+        multimodal_service = MultimodalService()
+        storage = get_storage_backend()
+
+        multimodal_texts: list[str] = []
+        multimodal_urls: list[str] = []
+        multimodal_emails: list[str] = []
+
+        # Inspect if conversation has any attachments on messages
+        for msg in messages:
+            if hasattr(msg, "attachments") and msg.attachments:
+                for att in msg.attachments:
+                    # Support images: image/png, image/jpeg, image/webp
+                    if att.content_type in ["image/png", "image/jpeg", "image/webp"]:
+                        try:
+                            att_bytes = asyncio.run(storage.get(att.storage_key))
+                            mm_res = multimodal_service.analyze_image(
+                                image_bytes=att_bytes,
+                                mime_type=att.content_type,
+                                filename=att.original_filename,
+                            )
+                            fn = att.original_filename
+                            if mm_res.visible_text:
+                                multimodal_texts.append(
+                                    f"[Attachment '{fn}' Text]: {mm_res.visible_text}"
+                                )
+                            if mm_res.customer_context:
+                                multimodal_texts.append(
+                                    f"[Attachment '{fn}' Context]: "
+                                    f"{mm_res.customer_context}"
+                                )
+                            multimodal_urls.extend(mm_res.extracted_urls)
+                            multimodal_emails.extend(mm_res.extracted_emails)
+
+                        except Exception as exc:
+                            logger.warning(
+                                f"Failed to analyze attachment {att.id} "
+                                f"via multimodal service: {exc}"
+                            )
 
         try:
             cust_output: CustomerIntelligenceOutput = ai_service.analyze_conversation(
@@ -240,6 +281,18 @@ class UnifiedIntelligenceService:
             if msg.sender_name:
                 sender_label += f" {msg.sender_name}"
             combined_texts.append(f"{sender_label}: {msg.content}")
+
+        # Include multimodal extracted text, URLs, and emails in security analysis
+        if multimodal_texts:
+            combined_texts.extend(multimodal_texts)
+        if multimodal_urls:
+            combined_texts.append(
+                f"Extracted Attachment URLs: {' '.join(multimodal_urls)}"
+            )
+        if multimodal_emails:
+            combined_texts.append(
+                f"Extracted Attachment Emails: {' '.join(multimodal_emails)}"
+            )
 
         aggregated_text = "\n".join(combined_texts)
         risk_engine = RiskEngine()
@@ -295,6 +348,15 @@ class UnifiedIntelligenceService:
             security_result=sec_output,
         )
         db.commit()
+
+        # 6. Campaign Correlation Layer
+        if threat_record and threat_record.threat_detected:
+            try:
+                CampaignService.correlate_threat(db, threat_record)
+            except Exception as exc:
+                logger.warning(
+                    f"Campaign correlation failed for threat {threat_record.id}: {exc}"
+                )
 
         return UnifiedAnalysisResponse(
             conversation_id=conversation_id,

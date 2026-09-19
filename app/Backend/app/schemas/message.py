@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.enums import SenderType
+from app.schemas.attachment import AttachmentRead
 
 
 class MessageBase(BaseModel):
@@ -26,6 +27,6 @@ class MessageRead(MessageBase):
     id: uuid.UUID
     conversation_id: uuid.UUID
     created_at: datetime
+    attachments: list[AttachmentRead] = []
 
     model_config = ConfigDict(from_attributes=True)
-

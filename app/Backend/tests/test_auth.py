@@ -7,11 +7,10 @@ from httpx import ASGITransport, AsyncClient
 from app.core.auth import (
     create_access_token,
     decode_access_token,
-    get_current_active_user,
-    get_current_user,
     hash_password,
     verify_password,
 )
+from app.core.security import get_current_active_user, get_current_user
 from app.main import app
 from app.models.enums import UserRole
 from app.models.user import User
@@ -244,8 +243,8 @@ async def test_api_auth_me_returns_current_user(override_db):
 
 
 @pytest.mark.asyncio
-async def test_missing_token_allows_public_access():
-    # Remove authentication dependency overrides to test public fallback
+async def test_missing_token_returns_401():
+    # Remove authentication dependency overrides to test raw endpoint protection
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_current_active_user, None)
 
@@ -254,12 +253,12 @@ async def test_missing_token_allows_public_access():
         # GET /api/v1/auth/me without headers
         response = await client.get("/api/v1/auth/me")
 
-    assert response.status_code == 200
-    assert response.json()["role"] == "ADMIN"
+    assert response.status_code == 401
+    assert "missing" in response.json()["detail"].lower()
 
 
 @pytest.mark.asyncio
-async def test_invalid_token_header_falls_back_to_public():
+async def test_invalid_token_header_returns_401():
     app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_current_active_user, None)
 
@@ -270,8 +269,7 @@ async def test_invalid_token_header_falls_back_to_public():
             headers={"Authorization": "Bearer totally-invalid-token"},
         )
 
-    assert response.status_code == 200
-    assert response.json()["role"] == "ADMIN"
+    assert response.status_code == 401
 
 
 # ============================================================================
@@ -297,35 +295,25 @@ async def test_support_agent_permissions(override_db):
 
     override_db.execute.return_value.scalars.return_value.all.return_value = []
     override_db.scalar.return_value = 0
-    override_db.execute.return_value.all.return_value = []
-    override_db.execute.return_value.one.side_effect = [
-        type(
-            "Stats",
-            (),
-            {
-                "total": 0,
-                "open_count": 0,
-                "in_progress_count": 0,
-                "resolved_count": 0,
-            },
-        )(),
-        type("ThreatStats", (), {"detected_count": 0, "critical_count": 0})(),
-    ]
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Can access conversations and public endpoints
+        # Can access conversations
         conv_resp = await client.get("/api/v1/conversations")
         assert conv_resp.status_code == 200
 
+        # Cannot access customer analytics (requires SUPPORT_MANAGER or ADMIN)
         analytics_resp = await client.get("/api/v1/analytics/customer")
-        assert analytics_resp.status_code == 200
+        assert analytics_resp.status_code == 403
+        assert "forbidden" in analytics_resp.json()["detail"].lower()
 
+        # Cannot access security analytics (requires SECURITY_ANALYST or ADMIN)
         sec_analytics_resp = await client.get("/api/v1/analytics/security")
-        assert sec_analytics_resp.status_code == 200
+        assert sec_analytics_resp.status_code == 403
 
+        # Cannot access dashboard overview (requires manager/analyst/admin)
         dash_resp = await client.get("/api/v1/dashboard/overview")
-        assert dash_resp.status_code == 200
+        assert dash_resp.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -344,6 +332,7 @@ async def test_support_manager_permissions(override_db):
     app.dependency_overrides[get_current_user] = lambda: manager_user
     app.dependency_overrides[get_current_active_user] = lambda: manager_user
 
+    # Mock empty stats for analytics and dashboard
     override_db.scalar.return_value = 0
     override_db.execute.return_value.all.return_value = []
     override_db.execute.return_value.one.side_effect = [
@@ -362,14 +351,17 @@ async def test_support_manager_permissions(override_db):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Can access customer analytics
         cust_resp = await client.get("/api/v1/analytics/customer")
         assert cust_resp.status_code == 200
 
+        # Can access dashboard overview
         dash_resp = await client.get("/api/v1/dashboard/overview")
         assert dash_resp.status_code == 200
 
+        # Cannot access security analytics (requires SECURITY_ANALYST or ADMIN)
         sec_resp = await client.get("/api/v1/analytics/security")
-        assert sec_resp.status_code == 200
+        assert sec_resp.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -393,14 +385,17 @@ async def test_security_analyst_permissions(override_db):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Can access security analytics
         sec_resp = await client.get("/api/v1/analytics/security")
         assert sec_resp.status_code == 200
 
+        # Can access recent threats
         recent_resp = await client.get("/api/v1/analytics/security/recent-threats")
         assert recent_resp.status_code == 200
 
+        # Cannot access customer analytics
         cust_resp = await client.get("/api/v1/analytics/customer")
-        assert cust_resp.status_code == 200
+        assert cust_resp.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -425,12 +420,14 @@ async def test_admin_permissions_can_access_all(override_db):
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        # Admin can access conversations
         conv_resp = await client.get("/api/v1/conversations")
         assert conv_resp.status_code == 200
 
+        # Admin can access customer analytics
         cust_resp = await client.get("/api/v1/analytics/customer")
         assert cust_resp.status_code == 200
 
+        # Admin can access security analytics
         sec_resp = await client.get("/api/v1/analytics/security")
         assert sec_resp.status_code == 200
-

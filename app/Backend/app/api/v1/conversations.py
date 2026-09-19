@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.database import get_db
-from app.models.enums import ConversationChannel, ConversationStatus
+from app.core.security import require_role
+from app.models.enums import ConversationChannel, ConversationStatus, UserRole
 from app.schemas.conversation import (
     ConversationCreate,
     ConversationDetailRead,
@@ -23,6 +23,16 @@ from app.services.conversation_service import ConversationService
 router = APIRouter(
     prefix="/conversations",
     tags=["Conversations"],
+    dependencies=[
+        Depends(
+            require_role(
+                UserRole.SUPPORT_AGENT,
+                UserRole.SUPPORT_MANAGER,
+                UserRole.SECURITY_ANALYST,
+                UserRole.ADMIN,
+            )
+        )
+    ],
 )
 
 

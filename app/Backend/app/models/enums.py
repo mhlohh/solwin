@@ -23,6 +23,12 @@ class ConversationStatus(str, enum.Enum):
     CLOSED = "CLOSED"
 
 
+class CampaignStatus(str, enum.Enum):
+    ACTIVE = "ACTIVE"
+    MONITORED = "MONITORED"
+    RESOLVED = "RESOLVED"
+
+
 class SenderType(str, enum.Enum):
     CUSTOMER = "CUSTOMER"
     AGENT = "AGENT"
@@ -50,24 +56,11 @@ class RiskLevel(str, enum.Enum):
 
 
 class ComplaintCategory(str, enum.Enum):
-    # Core legacy backend categories (preserved for backend contract compatibility)
     ACCOUNT_ACCESS = "ACCOUNT_ACCESS"
     PAYMENT_BILLING = "PAYMENT_BILLING"
     TECHNICAL_ISSUE = "TECHNICAL_ISSUE"
     SERVICE_REQUEST = "SERVICE_REQUEST"
     OTHER = "OTHER"
-
-    # Canonical 11 Business Categories
-    PAYMENT_TRANSACTION_ISSUE = "PAYMENT_TRANSACTION_ISSUE"
-    ACCOUNT_LOGIN_PROBLEM = "ACCOUNT_LOGIN_PROBLEM"
-    PRODUCT_ISSUE = "PRODUCT_ISSUE"
-    DELIVERY_SHIPPING_PROBLEM = "DELIVERY_SHIPPING_PROBLEM"
-    REFUND_REQUEST = "REFUND_REQUEST"
-    SUBSCRIPTION_ISSUE = "SUBSCRIPTION_ISSUE"
-    TECHNICAL_PROBLEM = "TECHNICAL_PROBLEM"
-    SERVICE_QUALITY = "SERVICE_QUALITY"
-    BILLING_PROBLEM = "BILLING_PROBLEM"
-    SECURITY_CONCERN = "SECURITY_CONCERN"
 
 
 class ResolutionStatus(str, enum.Enum):

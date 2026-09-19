@@ -124,16 +124,6 @@ def test_customer_intelligence_invalid_output_json():
 # ==========================================
 # 3. API Integration Tests (Mocked DB & AI)
 # ==========================================
-from fastapi import FastAPI
-from app.api.v1.analysis import router as analysis_router
-from app.core.auth import get_current_active_user, get_current_user
-from app.models.enums import UserRole
-from app.models.user import User
-
-mock_api_app = FastAPI()
-mock_api_app.include_router(analysis_router, prefix="/api/v1")
-
-
 @pytest.fixture
 def mock_db():
     session = MagicMock()
@@ -142,22 +132,9 @@ def mock_db():
 
 @pytest.fixture
 def override_db(mock_db):
-    now = datetime.now(timezone.utc)
-    admin_user = User(
-        id=uuid.uuid4(),
-        email="testadmin@solwin.ai",
-        full_name="Test Admin",
-        hashed_password="mocked_password_hash",
-        role=UserRole.ADMIN,
-        is_active=True,
-        created_at=now,
-        updated_at=now,
-    )
-    mock_api_app.dependency_overrides[get_db] = lambda: mock_db
-    mock_api_app.dependency_overrides[get_current_user] = lambda: admin_user
-    mock_api_app.dependency_overrides[get_current_active_user] = lambda: admin_user
+    app.dependency_overrides[get_db] = lambda: mock_db
     yield mock_db
-    mock_api_app.dependency_overrides.clear()
+    app.dependency_overrides.clear()
 
 
 @pytest.mark.asyncio
@@ -201,7 +178,7 @@ async def test_api_analyze_conversation_success(override_db):
         "app.api.v1.analysis.CustomerIntelligenceService.analyze_conversation",
         return_value=mock_output,
     ):
-        transport = ASGITransport(app=mock_api_app)
+        transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(f"/api/v1/analysis/conversation/{conv_id}")
 
@@ -222,7 +199,7 @@ async def test_api_analyze_conversation_not_found(override_db):
     conv_id = uuid.uuid4()
     override_db.scalar.return_value = None
 
-    transport = ASGITransport(app=mock_api_app)
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(f"/api/v1/analysis/conversation/{conv_id}")
 
@@ -243,7 +220,7 @@ async def test_api_analyze_empty_conversation(override_db):
     conv.messages = []
     override_db.scalar.return_value = conv
 
-    transport = ASGITransport(app=mock_api_app)
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(f"/api/v1/analysis/conversation/{conv_id}")
 
@@ -274,7 +251,7 @@ async def test_api_get_analysis_success(override_db):
 
     override_db.scalar.side_effect = [conv, analysis]
 
-    transport = ASGITransport(app=mock_api_app)
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(f"/api/v1/analysis/conversation/{conv_id}")
 
@@ -282,7 +259,7 @@ async def test_api_get_analysis_success(override_db):
     data = response.json()
     assert data["conversation_id"] == str(conv_id)
     assert data["analysis"]["id"] == str(analysis_id)
-    assert data["analysis"]["category"] == "TECHNICAL_ISSUE"
+    assert data["analysis"]["priority"] == "CRITICAL"
 
 
 @pytest.mark.asyncio
@@ -293,7 +270,7 @@ async def test_api_get_analysis_none_exists(override_db):
 
     override_db.scalar.side_effect = [conv, None]
 
-    transport = ASGITransport(app=mock_api_app)
+    transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get(f"/api/v1/analysis/conversation/{conv_id}")
 
@@ -352,7 +329,7 @@ async def test_reanalysis_updates_existing_record(override_db):
         "app.api.v1.analysis.CustomerIntelligenceService.analyze_conversation",
         return_value=new_output,
     ):
-        transport = ASGITransport(app=mock_api_app)
+        transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             response = await client.post(f"/api/v1/analysis/conversation/{conv_id}")
 

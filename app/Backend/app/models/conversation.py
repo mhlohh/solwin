@@ -11,6 +11,7 @@ from app.models.enums import ConversationChannel, ConversationStatus
 
 if TYPE_CHECKING:
     from app.models.analysis import Analysis
+    from app.models.attachment import Attachment
     from app.models.message import Message
     from app.models.threat import Threat
     from app.models.user import User
@@ -94,4 +95,9 @@ class Conversation(Base):
         cascade="all, delete-orphan",
         order_by="Threat.created_at.desc()",
     )
-
+    attachments: Mapped[List["Attachment"]] = relationship(
+        "Attachment",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+        order_by="Attachment.created_at.desc()",
+    )
