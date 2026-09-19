@@ -12,7 +12,6 @@ import { Threats } from './pages/Threats';
 import { ThreatDetails } from './pages/ThreatDetails';
 import { CustomerInsights } from './pages/CustomerInsights';
 import { SecurityAnalytics } from './pages/SecurityAnalytics';
-import { Settings } from './pages/Settings';
 
 export const App: React.FC = () => {
   return (
@@ -29,7 +28,6 @@ export const App: React.FC = () => {
             <Route path="/threats/:id" element={<ThreatDetails />} />
             <Route path="/insights/customer" element={<CustomerInsights />} />
             <Route path="/analytics/security" element={<SecurityAnalytics />} />
-            <Route path="/settings" element={<Settings />} />
           </Route>
 
           {/* Catch-all fallback */}

@@ -7,7 +7,6 @@ import {
   ShieldAlert,
   Users,
   LineChart,
-  Settings,
   X,
   LucideIcon,
 } from "lucide-react";
@@ -45,10 +44,6 @@ const SECTIONS: { title: string; items: NavItem[] }[] = [
   {
     title: "Analytics",
     items: [{ label: "Customer insights", to: "/insights/customer", icon: Users }],
-  },
-  {
-    title: "System",
-    items: [{ label: "Settings", to: "/settings", icon: Settings }],
   },
 ];
 

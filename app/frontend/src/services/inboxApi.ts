@@ -42,6 +42,7 @@ export interface DatasetStats {
   total_records: number;
   phishing_flagged: number;
   priority_counts: Record<string, number>;
+  channel_counts: Record<string, number>;
   top_intents: { issue: string; count: number }[];
   phishing_techniques: PhishingTechniqueFrequency[];
 }

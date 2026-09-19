@@ -363,8 +363,8 @@ export const Dashboard: React.FC = () => {
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-sm font-medium text-text-1">
                     {threat.threat_type === "NONE" || !threat.threat_type
-                      ? "No threat classified"
-                      : threat.threat_type}
+                      ? "Clean scan — no security signals"
+                      : threat.threat_type.replace(/_/g, " ")}
                   </span>
                   <RiskBadge level={threat.risk_level || "LOW"} size="sm" />
                 </div>

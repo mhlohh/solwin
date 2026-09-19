@@ -33,6 +33,8 @@ const SENTIMENT_COLORS: Record<string, string> = {
   NEGATIVE: "#b42318",
 };
 
+const SERIES_COLORS = ["#3b6fd4", "#57a86b", "#d29a44", "#b45cd1", "#c47b18", "#6f727a", "#4f9dc4"];
+
 const CATEGORY_LABELS: Record<string, string> = {
   ACCOUNT_ACCESS: "Account access",
   PAYMENT_BILLING: "Payment & billing",
@@ -136,18 +138,26 @@ export const CustomerInsights: React.FC = () => {
     boxShadow: "var(--shadow-2)",
   };
 
+  const channelEntries = dataset
+    ? Object.entries(dataset.channel_counts).sort((a, b) => b[1] - a[1])
+    : [];
+
   return (
     <div className="space-y-5 pb-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold tracking-tight">Customer insights</h1>
           <p className="text-sm text-text-2">
-            {data.total_conversations} conversations analyzed ·{" "}
-            {data.unresolved_complaint_count} unresolved ·{" "}
-            {data.urgent_complaint_count} urgent
-            {dataset && (
-              <> · {dataset.total_records.toLocaleString()} records ingested</>
-            )}
+            {dataset
+              ? <>
+                  {dataset.total_records.toLocaleString()} records ingested ·{" "}
+                  {data.total_conversations} AI-analyzed in the live queue
+                </>
+              : <>
+                  {data.total_conversations} conversations analyzed ·{" "}
+                  {data.unresolved_complaint_count} unresolved ·{" "}
+                  {data.urgent_complaint_count} urgent
+                </>}
           </p>
         </div>
         <button
@@ -171,9 +181,9 @@ export const CustomerInsights: React.FC = () => {
               Open inbox
             </a>
           </div>
-          <div className="grid gap-6 px-4 py-4 lg:grid-cols-2">
+          <div className="grid gap-6 px-4 py-4 lg:grid-cols-3">
             <div>
-              <p className="section-label mb-2.5">Priority tiers</p>
+              <p className="section-label mb-2.5">Priority mix</p>
               <div className="space-y-2.5">
                 {["CRITICAL", "HIGH", "MEDIUM", "LOW"].map((tier) => {
                   const count = dataset.priority_counts[tier] || 0;
@@ -208,7 +218,7 @@ export const CustomerInsights: React.FC = () => {
               </div>
             </div>
             <div className="h-64">
-              <p className="section-label mb-2.5">Top intents across {dataset.total_records.toLocaleString()} records</p>
+              <p className="section-label mb-2.5">Feedback volume by intent</p>
               {dataset.top_intents.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
@@ -231,6 +241,30 @@ export const CustomerInsights: React.FC = () => {
                 </div>
               )}
             </div>
+            <div className="h-64">
+              <p className="section-label mb-2.5">Channel mix</p>
+              {channelEntries.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={channelEntries.slice(0, 7).map(([channel, count]) => ({
+                      channel,
+                      count,
+                    }))}
+                    layout="vertical"
+                    margin={{ left: 8, right: 16 }}
+                  >
+                    <XAxis type="number" allowDecimals={false} />
+                    <YAxis dataKey="channel" type="category" width={120} />
+                    <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "var(--inset)" }} />
+                    <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-text-3">
+                  No channel data available.
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -238,7 +272,7 @@ export const CustomerInsights: React.FC = () => {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <ChartCard
           title="Conversation volume"
-          subtitle="Conversations per day, last 14 days"
+          subtitle="Live support queue per day, last 14 days (6 AI-analyzed conversations)"
         >
           <div className="h-64">
             {trends && trends.trends.length > 0 ? (
@@ -265,7 +299,10 @@ export const CustomerInsights: React.FC = () => {
           </div>
         </ChartCard>
 
-        <ChartCard title="Issue categories" subtitle="Conversations by classified category">
+        <ChartCard
+          title="Issue categories"
+          subtitle="Live support queue — Gemini-classified category per conversation"
+        >
           <div className="h-64">
             {Object.keys(data.category_distribution).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -293,7 +330,10 @@ export const CustomerInsights: React.FC = () => {
           </div>
         </ChartCard>
 
-        <ChartCard title="Priority mix" subtitle="Automated triage priority distribution">
+        <ChartCard
+          title="Queue priority mix"
+          subtitle="Live support queue — automated triage of AI-analyzed conversations"
+        >
           <div className="h-56">
             {Object.keys(data.priority_distribution).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -329,7 +369,10 @@ export const CustomerInsights: React.FC = () => {
           </div>
         </ChartCard>
 
-        <ChartCard title="Sentiment mix" subtitle="Across analyzed conversations">
+        <ChartCard
+          title="Queue sentiment mix"
+          subtitle="Live support queue — Gemini sentiment per analyzed conversation"
+        >
           <div className="h-56">
             {Object.keys(data.sentiment_distribution).length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
@@ -370,6 +413,9 @@ export const CustomerInsights: React.FC = () => {
         <div className="surface-card">
           <div className="border-b border-line px-4 py-3">
             <h3 className="text-sm font-semibold">Most reported issues</h3>
+            <p className="mt-0.5 text-xs text-text-3">
+              Live support queue — AI-extracted issue statements (one per conversation)
+            </p>
           </div>
           <div className="space-y-3 px-4 py-4">
             {data.most_frequently_reported_issues.slice(0, 8).map((issue, idx) => {

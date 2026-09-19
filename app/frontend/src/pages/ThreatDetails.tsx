@@ -68,7 +68,7 @@ export const ThreatDetails: React.FC = () => {
             <div className="flex items-center gap-2">
               <h1 className="text-lg font-semibold tracking-tight">
                 {threat?.threat_type === "NONE" || !threat?.threat_type
-                  ? "No threat classified"
+                  ? "Clean scan — no security signals"
                   : threat?.threat_type.replace(/_/g, " ")}
               </h1>
               {threat && <RiskBadge level={threat.risk_level || "LOW"} />}

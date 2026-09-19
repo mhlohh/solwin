@@ -104,10 +104,18 @@ def get_ticket_stats(db: Session, top_intents_limit: int = 8) -> dict:
         .order_by(desc("n"))
         .all()
     )
+    channel_rows = (
+        db.query(models.Ticket.channel, func.count(models.Ticket.id).label("n"))
+        .filter(models.Ticket.channel != "")
+        .group_by(models.Ticket.channel)
+        .order_by(desc("n"))
+        .all()
+    )
     return {
         "total_records": total,
         "phishing_flagged": phishing_count,
         "priority_counts": priority_counts,
+        "channel_counts": {row[0]: row[1] for row in channel_rows},
         "top_intents": [
             {"issue": row[0], "count": row[1]} for row in intent_rows
         ],

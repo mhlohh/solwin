@@ -26,7 +26,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 
-RUN groupadd --system app && useradd --system --ingroup app app
+RUN groupadd --system app && useradd --system -g app app
 
 WORKDIR /app
 COPY --from=builder /app /app

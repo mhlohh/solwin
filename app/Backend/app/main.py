@@ -15,6 +15,9 @@ logger = get_logger("solwin.main")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} in [{settings.APP_ENV}] environment...")
+    from app.core.database import Base, engine
+    import app.models  # noqa: F401
+    Base.metadata.create_all(bind=engine)
     yield
     logger.info(f"Shutting down {settings.APP_NAME}...")
 

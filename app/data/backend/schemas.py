@@ -80,5 +80,6 @@ class TicketStatsResponse(BaseModel):
     total_records: int
     phishing_flagged: int
     priority_counts: dict[str, int]
+    channel_counts: dict[str, int] = {}
     top_intents: List[IntentFrequency]
     phishing_techniques: List[TechniqueFrequency] = []

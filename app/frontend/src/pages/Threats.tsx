@@ -122,7 +122,7 @@ export const Threats: React.FC = () => {
       render: (item) => (
         <span className="text-sm font-medium text-text-1">
           {item.threat_type === "NONE" || !item.threat_type
-            ? "No threat classified"
+            ? "Clean scan — no security signals"
             : item.threat_type.replace(/_/g, " ")}
         </span>
       ),
