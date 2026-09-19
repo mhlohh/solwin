@@ -1,9 +1,10 @@
 # ==============================================================================
 # Solwin Repository .gitignore
-# Covers Python (Backend, ML Services, Data), Node.js (Frontend), and OS files
+# Canonical repository-wide gitignore covering all workspace tiers:
+# Python (Backend, ML Services, Data API), Node.js (Frontend), and OS/IDE files.
 # ==============================================================================
 
-# --- Operating System Artifacts ---
+# --- Operating System & Desktop Files ---
 .DS_Store
 .DS_Store?
 ._*
@@ -47,9 +48,11 @@ env.bak/
 venv.bak/
 
 # --- Environment Variables & Secrets ---
-# Never commit credentials, private keys, access tokens, API keys
+# Never commit credentials, private keys, access tokens, API keys, or env files
 .env
 .env.*
+.env.local
+.env.*.local
 !.env.example
 !.env.*.example
 
@@ -70,6 +73,7 @@ dmypy.json
 
 # --- Node.js & Frontend ---
 node_modules/
+.pnpm-store/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -77,12 +81,18 @@ pnpm-debug.log*
 lerna-debug.log*
 .pnpm-debug.log*
 package-lock.json.bak
-
-# Frontend build outputs and cache
 app/frontend/dist/
 app/frontend/dist-ssr/
 *.tsbuildinfo
 .eslintcache
+
+# --- Databases, Storage & Local Uploads ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+app/data/uploads/
+uploads/
 
 # --- IDEs & Editors ---
 .idea/
@@ -90,18 +100,22 @@ app/frontend/dist-ssr/
 *.swp
 *.swo
 *.swn
+*.sw?
 *.bak
 *~
 .project
 .pydevproject
 .settings/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
 
-
-# --- Temporary Test Artifacts ---
+# --- Logs & Temporary Test Artifacts ---
+*.log
 sample_*
 downloaded_*
 bad_file.txt
 scratch/
 tmp/
 temp/
-*.log
