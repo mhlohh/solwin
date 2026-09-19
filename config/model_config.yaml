@@ -1,0 +1,8 @@
+service:
+  supported_languages:
+    - en
+  classifier:
+    model_name: complaint-classifier
+    version: untrained
+    confidence_threshold: 0.60
+    fine_grained_intent_enabled: false
