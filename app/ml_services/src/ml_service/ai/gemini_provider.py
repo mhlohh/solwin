@@ -19,10 +19,12 @@ Security notes
 import json
 import logging
 import signal
+import threading
 import time
 from contextlib import contextmanager
 from typing import Generator
 
+import httpx
 from google import genai
 from google.genai import types
 
@@ -47,8 +49,14 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Timeout context manager (SIGALRM — macOS/Linux only, safe for prod use)
+# Timeout strategy
 # ---------------------------------------------------------------------------
+# SIGALRM only works in the main thread of the main interpreter — uvicorn runs
+# sync endpoints in worker threads, so signal-based timeouts would raise
+# "signal only works in main thread" on every request. The real enforcement is
+# an HTTP-level timeout on the underlying client; the context manager below
+# keeps SIGALRM for main-thread callers (tests, scripts) and degrades to a no-op
+# elsewhere.
 
 class _TimeoutError(Exception):
     pass
@@ -56,7 +64,15 @@ class _TimeoutError(Exception):
 
 @contextmanager
 def _timeout(seconds: float) -> Generator[None, None, None]:
-    """Raise ``_TimeoutError`` if the block exceeds *seconds*."""
+    """Raise ``_TimeoutError`` if the block exceeds *seconds* (main thread only).
+
+    In worker threads this is a no-op; the client's HTTP timeout enforces the
+    deadline instead.
+    """
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+
     int_secs = max(1, int(seconds))
 
     def _handler(signum: int, frame: object) -> None:  # noqa: ARG001
@@ -99,10 +115,24 @@ class GeminiProvider(AIProvider):
             )
 
         try:
-            # Key is never stored on a public attribute
-            self._client = genai.Client(api_key=settings.gemini_api_key)
+            # Key is never stored on a public attribute.
+            # The HTTP client timeout is the authoritative deadline for requests
+            # made from worker threads (see _timeout notes above).
+            http = httpx.Client(
+                timeout=httpx.Timeout(
+                    settings.gemini_timeout_seconds,
+                    connect=min(5.0, settings.gemini_timeout_seconds),
+                )
+            )
+            self._client = genai.Client(
+                api_key=settings.gemini_api_key,
+                http_options={"client_args": {"http": http}},
+            )
             self._available = True
-            logger.info("GeminiProvider: initialized with model=%s", self._model)
+            logger.info(
+                "GeminiProvider: initialized with model=%s (http timeout=%ss)",
+                self._model, settings.gemini_timeout_seconds,
+            )
         except Exception as exc:
             logger.error("GeminiProvider: failed to initialize client: %s", type(exc).__name__)
             raise ProviderConfigError(
@@ -252,16 +282,16 @@ class GeminiProvider(AIProvider):
                 if attempt < max_retries:
                     wait = 2 ** attempt
                     logger.warning(
-                        "GeminiProvider: transient error on attempt %d/%d (%s), retrying in %ds",
-                        attempt + 1, max_retries + 1, type(exc).__name__, wait,
+                        "GeminiProvider: transient error on attempt %d/%d (%s: %s), retrying in %ds",
+                        attempt + 1, max_retries + 1, type(exc).__name__, str(exc)[:200], wait,
                     )
                     time.sleep(wait)
                     last_exc = exc
                     continue
 
                 logger.error(
-                    "GeminiProvider: unrecoverable error after %d attempts: %s",
-                    max_retries + 1, type(exc).__name__,
+                    "GeminiProvider: unrecoverable error after %d attempts: %s: %s",
+                    max_retries + 1, type(exc).__name__, str(exc)[:300],
                 )
                 raise ProviderError(f"Gemini call failed: {type(exc).__name__}") from exc
 

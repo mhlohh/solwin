@@ -1,0 +1,76 @@
+# Google Cloud Build — builds all four Solwin images and pushes them to
+# Artifact Registry. Cloud Run services then deploy from these images.
+#
+# One-time setup (see deploy/README-gcp.md for the full walk-through):
+#   gcloud services enable cloudbuild.googleapis.com run.googleapis.com \
+#     artifactregistry.googleapis.com sqladmin.googleapis.com
+#
+# Build + push:
+#   gcloud builds submit --config deploy/cloudbuild.yaml .
+
+substitutions:
+  _REGION: us-central1
+  _REPO: solwin
+
+steps:
+  # ---------- Backend API ----------
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - app/Backend/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest
+      - app/Backend
+
+  # ---------- ML service ----------
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - app/ml_services/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/ml-service:$COMMIT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/ml-service:latest
+      - app/ml_services
+
+  # ---------- Data API ----------
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - app/data/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/data-api:$COMMIT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/data-api:latest
+      - app/data
+
+  # ---------- Frontend (nginx + SPA) ----------
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - app/frontend/Dockerfile
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$COMMIT_SHA
+      - -t
+      - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:latest
+      - app/frontend
+
+images:
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/backend:latest
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/ml-service:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/ml-service:latest
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/data-api:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/data-api:latest
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:$COMMIT_SHA
+  - us-central1-docker.pkg.dev/$PROJECT_ID/${_REPO}/frontend:latest
+
+options:
+  machineType: E2_HIGHCPU_8
+  logging: CLOUD_LOGGING_ONLY

@@ -17,6 +17,7 @@ RUN uv sync --frozen --no-install-project --no-dev
 COPY app ./app
 COPY alembic.ini ./
 COPY alembic ./alembic
+COPY scripts ./scripts
 RUN uv sync --frozen --no-dev
 
 FROM python:3.11-slim AS runtime
@@ -37,6 +38,6 @@ EXPOSE 8001
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)" || exit 1
 
-# Startup wrapper: wait for the database, apply migrations if DATABASE_URL is a
-# postgres URL, then boot the API. Cloud Run / GKE set DATABASE_URL via env.
-CMD ["sh", "-c", "python scripts/docker_start.py"]
+# Startup wrapper: applies migrations when RUN_MIGRATIONS=1 (Cloud SQL), then
+# boots the API on $PORT (Cloud Run sets PORT; defaults to 8001 in compose).
+CMD ["python", "scripts/docker_start.py"]

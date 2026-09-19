@@ -42,6 +42,9 @@ Start in this order (Backend calls ML; Frontend calls Backend):
 
 ```
 # 1. ML service on :8000
+# NOTE: without app/ml_services/.env containing GEMINI_ENABLED=true + GEMINI_API_KEY,
+# sentiment falls back to NEUTRAL (LLM off) — copy the two GEMINI_* lines from
+# app/Backend/.env to give it real AI sentiment.
 cd app/ml_services && .venv/bin/uvicorn ml_service.main:app --host 127.0.0.1 --port 8000
 
 # 2. Backend API on :8001
@@ -77,6 +80,13 @@ Notes learned the hard way:
 - Reset demo data: stop servers, delete `app/Backend/solwin_dev.db`, re-run bootstrap.
 - Backend test suite: `cd app/Backend && uv run pytest` (no DB or network needed).
 - ML test suite: `cd app/ml_services && .venv/bin/python -m pytest`.
+
+## Containerized stack (Docker / Cloud Run)
+
+Production containers live in each service dir (`app/*/Dockerfile`) plus the
+integrated `docker-compose.yml` at the repo root (4 services + Postgres).
+Google Cloud path: `gcloud builds submit --config deploy/cloudbuild.yaml .`
+then follow `deploy/README-gcp.md` (Cloud Run + Cloud SQL + Secret Manager).
 
 ## Data API notes (:8002)
 

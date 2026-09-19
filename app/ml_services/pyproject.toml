@@ -9,10 +9,10 @@ description = "Customer complaint intelligence ML service"
 requires-python = ">=3.11,<3.14"
 dependencies = [
   "fastapi==0.115.12",
-  "google-genai>=1.5.0",
+  "google-genai>=2.24.0,<3.0.0",
   "numpy>=1.26.0,<3.0.0",
   "pandas>=2.2.0,<4.0.0",
-  "pydantic==2.10.6",
+  "pydantic>=2.11,<4.0",
   "pydantic-settings==2.8.1",
   "PyYAML==6.0.2",
   "scikit-learn>=1.5.0,<2.0.0",

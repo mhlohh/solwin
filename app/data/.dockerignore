@@ -1,0 +1,8 @@
+docs/
+test_api.py
+uploads/
+*.db
+*.sqlite
+__pycache__/
+*.pyc
+.venv/
