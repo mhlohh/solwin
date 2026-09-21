@@ -1,16 +1,23 @@
-"""Unified Gemini pipeline — single API call that covers classification,
-sentiment, social-engineering analysis, and summarization.
+"""Unified analysis pipeline — tiered AI architecture.
 
-This module is the only place in the ML service that decides whether to call
-Gemini or fall back to local models.  All callers receive a
-``GeminiPipelineResult`` regardless of which path was taken.
+Primary tier (always served, deterministic, zero-cost):
+  * Classification:  local TF-IDF + LogReg (11 business categories)
+  * Sentiment:       local NLP lexicon engine (negation/intensifier aware)
+  * Social-eng:      local rule engine (urgency, credential harvesting, ...)
+
+Secondary tier (one structured Gemini call, best-effort):
+  * Summary:         Gemini is the PRIMARY summarizer; when unavailable the
+                     extractive summarizer takes over.
+  * Cross-check:     Gemini's classification/sentiment/SE outputs are computed
+                     in the same call; agreement is recorded in warnings for
+                     observability but local results are never overridden.
 
 Fallback matrix
 ---------------
-Classification:  Gemini → local TF-IDF → needs_review=True + warning
-Sentiment:       Gemini → SentimentResult(available=False) + warning
-Social-eng:      Gemini → SocialEngineeringResult(provider="fallback") + warning
-Summary:         Gemini → ConversationSummarizer.summarize() (extractive)
+Classification:  local TF-IDF (primary) → OTHER + needs_review=True + warning
+Sentiment:       local NLP lexicon (primary) — always available
+Social-eng:      local rule engine (primary) — always available
+Summary:         Gemini (primary) → ConversationSummarizer.summarize() (extractive)
 """
 
 import logging
@@ -28,48 +35,48 @@ from ml_service.api.schemas import (
     BusinessCategory,
     ClassificationResult,
     GeminiAnalysisOutput,
-    SentimentLabel,
     SentimentResult,
     SocialEngineeringResult,
-    SocialEngineeringTechnique,
 )
 from ml_service.classification.classifier import ComplaintClassifier
 from ml_service.core.config import Settings
-from ml_service.sentiment.analyzer import SentimentAnalyzer
+from ml_service.security.social_engineering_detector import SocialEngineeringDetector
+from ml_service.sentiment.local_nlp import LocalNLPSentimentAnalyzer
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class GeminiPipelineResult:
-    """Output of a single Gemini pipeline run.
+    """Output of a single pipeline run.
 
-    All fields are populated regardless of whether Gemini or a local
-    fallback was used.  Inspect ``provider`` and ``warnings`` to understand
-    which path was taken.
+    All fields are populated regardless of which tier produced them.
+    Inspect ``provider``, the per-section ``provider`` fields on
+    sentiment/social_engineering, and ``warnings`` for provenance.
     """
 
-    # Classification
+    # Classification (local ML — primary)
     classification: ClassificationResult
 
-    # Sentiment
+    # Sentiment (local NLP — primary)
     sentiment: SentimentResult
 
-    # Social engineering
+    # Social engineering (local rules — primary)
     social_engineering: SocialEngineeringResult
 
-    # Summary text (empty string means caller should use extractive summarizer)
+    # Summary text (Gemini primary; empty string means caller should use
+    # the extractive summarizer)
     summary_text: str
 
-    # Provenance
-    provider: str  # "gemini" | "local" | "fallback"
-    model_name: str  # e.g. "gemini-2.5-flash" or "tfidf-v1"
+    # Provenance: which tier produced the classification
+    provider: str  # "local" | "gemini"
+    model_name: str  # e.g. "tfidf-logistic-regression-mildly-balanced"
 
     warnings: list[str] = field(default_factory=list)
 
 
 class GeminiPipeline:
-    """Runs the single structured Gemini call and handles all fallback paths.
+    """Runs the tiered pipeline: local ML/NLP primary, Gemini secondary.
 
     One instance is created on startup and shared across requests.
     """
@@ -83,6 +90,8 @@ class GeminiPipeline:
         self._provider = ai_provider
         self._local_classifier = local_classifier
         self._settings = settings
+        self._nlp_sentiment = LocalNLPSentimentAnalyzer()
+        self._se_detector = SocialEngineeringDetector()
 
     def run(
         self,
@@ -96,91 +105,65 @@ class GeminiPipeline:
         """
         warnings: list[str] = []
 
-        # --- Attempt Gemini ---
+        # --- PRIMARY: local ML/NLP tier (classification + sentiment + SE) ---
+        result = self._build_from_local(subject, message, warnings)
+
+        # --- SECONDARY: one structured Gemini call ---
+        gemini_out: GeminiAnalysisOutput | None = None
         if self._provider and self._provider.is_available and self._settings.gemini_enabled:
             try:
-                gemini_out: GeminiAnalysisOutput = self._provider.analyze(subject, message)
-                return self._build_from_gemini(gemini_out, warnings)
+                gemini_out = self._provider.analyze(subject, message)
             except ProviderRateLimitError as exc:
-                logger.warning("GeminiPipeline: rate limited, using local fallback: %s", exc)
+                logger.warning("GeminiPipeline: rate limited: %s", exc)
                 warnings.append("gemini_rate_limited")
             except ProviderTimeoutError as exc:
-                logger.warning("GeminiPipeline: timeout, using local fallback: %s", exc)
+                logger.warning("GeminiPipeline: timeout: %s", exc)
                 warnings.append("gemini_timeout")
             except ProviderValidationError as exc:
-                logger.warning("GeminiPipeline: validation error, using local fallback: %s", exc)
+                logger.warning("GeminiPipeline: validation error: %s", exc)
                 warnings.append("gemini_validation_error")
             except ProviderConfigError as exc:
-                logger.warning("GeminiPipeline: config error, using local fallback: %s", exc)
+                logger.warning("GeminiPipeline: config error: %s", exc)
                 warnings.append("gemini_config_error")
             except ProviderError as exc:
-                logger.warning("GeminiPipeline: provider error, using local fallback: %s", exc)
+                logger.warning("GeminiPipeline: provider error: %s", exc)
                 warnings.append("gemini_provider_error")
             except Exception as exc:  # safety net
                 logger.error("GeminiPipeline: unexpected error: %s", type(exc).__name__)
                 warnings.append("gemini_unexpected_error")
 
-        # --- Local fallback ---
-        return self._build_from_local(subject, message, warnings)
+        # Gemini unavailable → summary falls back to extractive (empty text
+        # tells the caller to run the extractive summarizer).
+        if gemini_out is None:
+            if self._settings.gemini_enabled and "summary_fallback_extractive" not in warnings:
+                warnings.append("summary_fallback_extractive")
+            result.warnings = warnings
+            return result
+
+        # --- Gemini is the PRIMARY summarizer ---
+        if gemini_out.summary_text and gemini_out.summary_text.strip():
+            result.summary_text = gemini_out.summary_text.strip()
+        else:
+            warnings.append("summary_fallback_extractive")
+
+        # --- Cross-check observability (local results are never overridden) ---
+        try:
+            if BusinessCategory(gemini_out.category) is result.classification.category:
+                warnings.append("gemini_agrees_classification")
+            if gemini_out.sentiment_label == result.sentiment.label.value:
+                warnings.append("gemini_agrees_sentiment")
+            if bool(gemini_out.social_engineering_detected) is result.social_engineering.detected:
+                warnings.append("gemini_agrees_social_engineering")
+        except ValueError:
+            # Invalid Gemini category already handled inside provider validation.
+            pass
+
+        result.warnings = warnings
+        return result
 
     # ------------------------------------------------------------------
     # Builders
     # ------------------------------------------------------------------
-
-    def _build_from_gemini(
-        self,
-        out: GeminiAnalysisOutput,
-        warnings: list[str],
-    ) -> GeminiPipelineResult:
-        """Convert a valid GeminiAnalysisOutput into a GeminiPipelineResult."""
-        # Classification
-        try:
-            category = BusinessCategory(out.category)
-        except ValueError:
-            logger.warning("GeminiPipeline: invalid category %r, falling back", out.category)
-            warnings.append("classifier_fallback_used")
-            return self._build_from_local(None, None, warnings)
-
-        classification = ClassificationResult(
-            category=category,
-            confidence=max(0.0, min(1.0, float(out.confidence))),
-            probabilities={c.value: 0.0 for c in BusinessCategory},
-            needs_review=out.needs_review,
-            model_name=self._provider.model_name if self._provider else "gemini",  # type: ignore[union-attr]
-            model_version="1.0",
-            fine_grained_intent=None,
-        )
-        # Set the predicted category probability to the reported confidence
-        classification.probabilities[category.value] = classification.confidence
-
-        # Sentiment
-        sentiment = SentimentAnalyzer.from_gemini_output(out)
-
-        # Social engineering
-        techniques: list[SocialEngineeringTechnique] = []
-        for t in out.social_engineering_techniques:
-            try:
-                techniques.append(SocialEngineeringTechnique(t))
-            except ValueError:
-                logger.warning("GeminiPipeline: unknown SE technique %r, skipping", t)
-
-        social_engineering = SocialEngineeringResult(
-            detected=out.social_engineering_detected,
-            techniques=techniques,
-            reason=out.social_engineering_reason,
-            provider="gemini",
-        )
-
-        model_name = self._provider.model_name if self._provider else "gemini"  # type: ignore[union-attr]
-        return GeminiPipelineResult(
-            classification=classification,
-            sentiment=sentiment,
-            social_engineering=social_engineering,
-            summary_text=out.summary_text,
-            provider="gemini",
-            model_name=model_name,
-            warnings=warnings,
-        )
 
     def _build_from_local(
         self,
@@ -188,8 +171,8 @@ class GeminiPipeline:
         message: str | None,
         warnings: list[str],
     ) -> GeminiPipelineResult:
-        """Build a fallback result using local classifiers."""
-        # Classification — local TF-IDF
+        """Build the primary-tier result using local ML/NLP engines."""
+        # Classification — local TF-IDF (primary)
         if self._local_classifier.is_loaded:
             try:
                 classification = self._local_classifier.classify(message, subject)
@@ -202,8 +185,6 @@ class GeminiPipeline:
                     model_version=classification.model_version,
                     fine_grained_intent=classification.fine_grained_intent,
                 )
-                if self._settings.gemini_enabled and "classifier_fallback_used" not in warnings:
-                    warnings.append("classifier_fallback_used")
             except Exception as exc:
                 logger.error("GeminiPipeline: local classifier failed: %s", exc)
                 classification = ClassificationResult(
@@ -226,22 +207,17 @@ class GeminiPipeline:
             )
             warnings.append("classifier_not_loaded")
 
-        sentiment = SentimentAnalyzer.unavailable("Gemini unavailable; local sentiment not implemented.")
-        if self._settings.gemini_enabled:
-            warnings.append("sentiment_unavailable")
+        # Sentiment — local NLP lexicon engine (primary, always available)
+        sentiment = self._nlp_sentiment.analyze(message, subject)
 
-        social_engineering = SocialEngineeringResult(
-            detected=False,
-            techniques=[],
-            reason="Gemini unavailable; local rule-based SE detection in security module.",
-            provider="fallback",
-        )
+        # Social engineering — local rule engine (primary, always available)
+        social_engineering = self._se_detector.detect(message, subject)
 
         return GeminiPipelineResult(
             classification=classification,
             sentiment=sentiment,
             social_engineering=social_engineering,
-            summary_text="",  # caller will use extractive summarizer
+            summary_text="",  # caller uses extractive summarizer unless Gemini fills it
             provider="local",
             model_name=classification.model_name,
             warnings=warnings,

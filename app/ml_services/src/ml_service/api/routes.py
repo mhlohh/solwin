@@ -1,9 +1,12 @@
 from datetime import datetime, timezone
+import logging
 import time
 import uuid
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import JSONResponse
+
+from ml_service.core.config import get_settings
 
 from ml_service.analytics.frequency import FrequencyTracker
 from ml_service.api.schemas import (
@@ -12,6 +15,7 @@ from ml_service.api.schemas import (
     BatchClusterResponse,
     BatchUnifiedAnalysisRequest,
     BatchUnifiedAnalysisResponse,
+    BusinessCategory,
     ClassificationResult,
     ClusterAssignment,
     ClusterMetadata,
@@ -67,7 +71,48 @@ from ml_service.security.url_analyzer import URLAnalyzer
 from ml_service.summarization.summarizer import ConversationSummarizer
 from ml_service.urgency.detector import UrgencyDetector
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+# Deterministic urgency-detector signals that indicate theft / compromise /
+# fraud. Used by the security-signal category guard: when these fire and the
+# local fallback classifier is unconfident, the complaint is routed as
+# SECURITY_CONCERN so a likely fraud report can never reach an unrelated team.
+_SECURITY_SIGNAL_NAMES = frozenset(
+    {
+        "unauthorized_transaction_indicator",
+        "stolen_credential_or_item",
+        "account_compromise_detected",
+        "phishing_threat_detected",
+        "malware_infection_detected",
+        "ransomware_detected",
+        "fraud_alert",
+        "card_theft",
+    }
+)
+
+
+def _apply_security_signal_guard(
+    category: BusinessCategory,
+    urgency: object,
+    signals: list[str],
+    needs_review: bool,
+) -> tuple[BusinessCategory, bool]:
+    """Return (possibly overridden) category and whether the guard fired.
+
+    Fires only when urgency is CRITICAL with a security signal and the local
+    classifier flagged the text for review — i.e. the fallback path; the
+    Gemini path classifies these correctly and is never touched.
+    """
+    urgency_val = str(getattr(urgency, "value", urgency) or "").upper()
+    if (
+        urgency_val == "CRITICAL"
+        and needs_review
+        and any(s in _SECURITY_SIGNAL_NAMES for s in signals)
+    ):
+        return BusinessCategory.SECURITY_CONCERN, True
+    return category, False
 
 
 def registry(request: Request) -> ModelRegistry:
@@ -243,19 +288,25 @@ def recommend_action(
 ) -> ActionRecommendation:
     engine = recommendation_engine(request)
 
-    # Derive category and urgency if not explicitly provided
+    # Derive urgency first, then category — the security-signal guard needs
+    # the urgency signals to protect against an unconfident fallback
+    # prediction routing a likely fraud/compromise report to the wrong team.
+    urgency = req.urgency
+    urgency_signals: list[str] = []
+    if urgency is None:
+        urg_detector = urgency_detector(request)
+        urg_res = urg_detector.detect(message=req.complaint.message, subject=req.complaint.subject)
+        urgency = urg_res.urgency
+        urgency_signals = urg_res.signals
+
     category = req.category
     if category is None:
         clf = classifier(request)
         if clf.is_loaded:
             cat_res = clf.classify(message=req.complaint.message, subject=req.complaint.subject)
-            category = cat_res.category
-
-    urgency = req.urgency
-    if urgency is None:
-        urg_detector = urgency_detector(request)
-        urg_res = urg_detector.detect(message=req.complaint.message, subject=req.complaint.subject)
-        urgency = urg_res.urgency
+            category, _ = _apply_security_signal_guard(
+                cat_res.category, urgency, urgency_signals, cat_res.needs_review
+            )
 
     resolution = req.resolution
     if resolution is None:
@@ -322,10 +373,25 @@ def summarize_conversation(
     request: Request,
 ) -> ConversationSummary:
     engine = summarizer(request)
+
+    # Gemini is the PRIMARY summarizer: when the caller opts in, run the one
+    # structured Gemini call and hand its summary text to the summarizer.
+    # Any provider failure degrades to the extractive summarizer.
+    gemini_output: GeminiAnalysisOutput | None = None
+    if req.prefer_llm:
+        provider = getattr(request.app.state, "ai_provider", None)
+        settings = get_settings()
+        if provider is not None and provider.is_available and settings.gemini_enabled:
+            try:
+                gemini_output = provider.analyze(req.complaint.subject, req.complaint.message)
+            except Exception as exc:  # typed provider errors — degrade quietly
+                logger.warning("Summarize: Gemini unavailable (%s), using extractive", type(exc).__name__)
+
     return engine.summarize(
         message=req.complaint.message,
         subject=req.complaint.subject,
         prefer_llm=req.prefer_llm,
+        gemini_output=gemini_output,
     )
 
 
@@ -388,20 +454,19 @@ def analyze_complaint(
         except Exception as e:
             warnings.append(f"Security analysis failed: {e}")
 
-    # 1. Gemini pipeline (classification + sentiment + social engineering + summary)
-    #    One API call covers all four tasks.  Local fallbacks handle all error cases.
+    # 1. Tiered pipeline — local ML/NLP primary (classification, sentiment,
+    #    social engineering), Gemini secondary (summary + cross-check).
     pipeline = gemini_pipeline(request)
     pipeline_result = pipeline.run(subj, msg)
     warnings.extend(pipeline_result.warnings)
 
     classification_result = pipeline_result.classification
-    gemini_output: GeminiAnalysisOutput | None = None  # used to pass Gemini summary to summarizer
 
     # Track model provenance for response
     model_versions: dict[str, str] = {
         "classification": pipeline_result.model_name,
-        "sentiment": pipeline_result.model_name if pipeline_result.sentiment.available else "unavailable",
-        "social_engineering": pipeline_result.social_engineering.provider,
+        "sentiment": "local-nlp-lexicon-v1",
+        "social_engineering": "local-rule-engine-v1",
         "summary": "pending",
     }
 
@@ -417,7 +482,41 @@ def analyze_complaint(
         except Exception as e:
             warnings.append(f"Clustering failed: {e}")
 
-    # 3. Frequency tracking
+    # 4. Urgency Detection (always local) — computed before frequency tracking
+    #    so the security-signal category guard below can run first.
+    urgency_res: UrgencyResult | None = None
+    if req.include_urgency:
+        try:
+            urg_engine = urgency_detector(request)
+            urgency_res = urg_engine.detect(msg, subj)
+        except Exception as e:
+            warnings.append(f"Urgency detection failed: {e}")
+
+    # 4.5 Security-signal category guard (primary local tier).
+    # When the deterministic urgency detector fires CRITICAL security signals
+    # and the local classifier is unconfident (needs_review), route the
+    # complaint as SECURITY_CONCERN so the recommendation engine can never
+    # send a likely fraud/compromise report to an unrelated team.
+    if urgency_res is not None:
+        guarded_cat, fired = _apply_security_signal_guard(
+            classification_result.category,
+            urgency_res.urgency,
+            urgency_res.signals,
+            classification_result.needs_review,
+        )
+        if fired:
+            classification_result = ClassificationResult(
+                category=guarded_cat,
+                confidence=classification_result.confidence,
+                probabilities=classification_result.probabilities,
+                needs_review=True,
+                model_name=classification_result.model_name,
+                model_version=classification_result.model_version,
+                fine_grained_intent=classification_result.fine_grained_intent,
+            )
+            warnings.append("security_signal_category_guard")
+
+    # 3. Frequency tracking (after the guard so telemetry reflects the final category)
     try:
         freq_tracker = frequency_tracker(request)
         freq_tracker.record_event(
@@ -426,15 +525,6 @@ def analyze_complaint(
         )
     except Exception as e:
         warnings.append(f"Frequency tracking failed: {e}")
-
-    # 4. Urgency Detection (always local)
-    urgency_res: UrgencyResult | None = None
-    if req.include_urgency:
-        try:
-            urg_engine = urgency_detector(request)
-            urgency_res = urg_engine.detect(msg, subj)
-        except Exception as e:
-            warnings.append(f"Urgency detection failed: {e}")
 
     # 5. Resolution Status Detection (always local)
     resolution_res: ResolutionResult | None = None
@@ -478,7 +568,7 @@ def analyze_complaint(
                     prefer_llm=True,
                     gemini_output=gemini_output_for_summary,
                 )
-                model_versions["summary"] = pipeline_result.model_name
+                model_versions["summary"] = get_settings().gemini_model
             else:
                 summary_res = sum_engine.summarize(
                     message=msg,
@@ -681,10 +771,14 @@ def analyze_review(
     )
 
     # 11. Overall Risk
-    # Combine urgency score and security score
-    overall_score = round(max(urgency_score * 0.5 + sec_risk_score * 0.5, sec_risk_score), 4)
+    # Combine urgency severity and security risk — take the max so a
+    # high-severity input always dominates the aggregate instead of being
+    # averaged away (urgency.score is detection confidence, not severity).
+    urgency_severity_map = {"CRITICAL": 1.0, "HIGH": 0.75, "MEDIUM": 0.45, "LOW": 0.2}
+    urgency_severity = urgency_severity_map.get(urgency_level.upper(), 0.2)
+    overall_score = round(max(urgency_severity, sec_risk_score), 4)
     if overall_score >= 0.8:
-        overall_level = "CRITICAL" if sec_risk_score >= 0.9 or urgency_score >= 0.9 else "HIGH"
+        overall_level = "CRITICAL" if sec_risk_score >= 0.9 or urgency_severity >= 1.0 else "HIGH"
     elif overall_score >= 0.5:
         overall_level = "MEDIUM"
     elif overall_score >= 0.25:
@@ -727,7 +821,7 @@ def analyze_review(
         classifier=unified_res.model_versions.get("classification", "complaint_classifier_v1"),
         intent_classifier="intent_classifier_v1",
         clusterer="clusterer_v1",
-        sentiment_model=unified_res.model_versions.get("sentiment", "gemini"),
+        sentiment_model=unified_res.model_versions.get("sentiment", "local-nlp-lexicon-v1"),
         summarizer=unified_res.model_versions.get("summary", "extractive_v1"),
     )
 

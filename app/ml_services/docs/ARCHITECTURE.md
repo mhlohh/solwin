@@ -28,24 +28,28 @@ resolution status, summary, security risk, and a recommended action —
 
 ### The solution in one sentence
 
-A **hybrid AI architecture**: one structured Gemini LLM call for deep
-understanding, wrapped in deterministic fallback layers (scikit-learn
-models, regex detectors, rule engines) so every request always produces a
-valid, warning-annotated answer.
+A **tiered AI architecture**: local ML/NLP engines (scikit-learn classifier,
+lexicon sentiment, rule-based social-engineering detection) are the **primary
+tier** — deterministic, zero-cost, millisecond-fast — while one structured
+Gemini call runs **secondary** as the primary *summarizer* and an agreement
+cross-check that never overrides local results.
 
 ### The full request flow
 
 ```mermaid
 flowchart TD
     A["Raw message\n+ subject"] --> B["Preprocessing\nbuild_complaint_text()"]
-    B --> C{Gemini\nenabled & available?}
-    C -- "yes" --> D["1 Gemini call\nstructured JSON"]
-    D --> E["Parse & validate\nGeminiAnalysisOutput"]
-    E --> F["Local deterministic layers:\nurgency · resolution · cluster\nentities · recommendation"]
-    F --> G["Merge → CustomerReviewOutput\n(canonical 15-section schema)"]
-    C -- "no / failed" --> H["Fallback matrix:\nTF-IDF classifier · sentiment\nsentinel · extractive summary"]
-    H --> F
-    G --> I["warnings[] records\ndegradations honestly"]
+    B --> C["PRIMARY TIER (always served)\nTF-IDF classifier · NLP lexicon sentiment\nrule-based SE detector"]
+    C --> D{Gemini\nenabled & available?}
+    D -- "yes" --> E["1 Gemini call\nstructured JSON"]
+    E --> F["Summary: Gemini text\n(primary summarizer)"]
+    E --> G["Cross-check: gemini_agrees_*\nwarnings — never overrides"]
+    D -- "no / failed" --> H["Extractive summarizer\n(summary_fallback_extractive)"]
+    C --> I["Local deterministic layers:\nurgency · resolution · cluster\nentities · recommendation"]
+    F --> I
+    G --> I
+    H --> I
+    I --> J["Merge → CustomerReviewOutput\n(canonical 15-section schema)\nwarnings[] = provenance"]
 ```
 
 **Files:** `orchestration/pipeline.py`, `api/routes.py`, `main.py`
@@ -128,9 +132,13 @@ flowchart LR
 flagged uncertain one. Low-confidence messages are surfaced to humans
 instead of silently mis-routed.
 
-**Honest limitation:** the baseline model's macro-F1 is low (0.10) because
-11 classes on a small subset is hard; the LLM path does the heavy lifting in
-production and the local model is the safety net.
+**Honest limitation:** macro-F1 stays low (~0.14) because the dataset's short,
+40%-duplicated reviews give weak signal for rare categories against the 46%
+delivery majority; accuracy/weighted-F1 are solid for a fallback tier and the
+LLM path does the heavy lifting in production. The original fully balanced
+model scored *below* the majority baseline (accuracy 0.194 vs 0.458) with
+saturated confidences — fixed by mildly balanced class weights (exponent 0.6),
+which restored working abstention and passes the QA regression fixture gate.
 
 **Files:** `classification/classifier.py`, `scripts/train_classifier.py`,
 `config/model_registry.yaml` (metrics + lineage)
@@ -183,21 +191,30 @@ the *provenance* of the score matters.
 
 ### How we solve it
 
-Sentiment rides the **single Gemini structured call** (label + score +
-reason), with an explicit, never-silent fallback.
+A **local NLP lexicon engine is the primary tier** (negation- and
+intensifier-aware, deterministic), with Gemini as a secondary cross-check in
+the unified pipeline.
 
 ### How it works
 
-1. Gemini returns `sentiment_label ∈ {POSITIVE, NEUTRAL, NEGATIVE}` + score.
-2. `SentimentAnalyzer.from_gemini_output()` validates + clamps score to [0,1].
-3. If the provider failed: `SentimentResult(available=False, provider="fallback")`
-   — **clearly marked**, never presented as real analysis.
+1. `sentiment/local_nlp.py` scores phrase- and token-level signals with a
+   negation window ("not good") and intensifiers ("very bad"), mapping
+   magnitude into the same 0.55–0.95 band the Gemini score uses.
+2. In the unified pipeline, Gemini's sentiment label (from the same
+   structured call that produces the summary) is compared against the local
+   verdict; agreement is recorded as `gemini_agrees_sentiment`.
+3. The local result is **always available** (`provider="local",
+   available=True`) — no silent-unavailable sentinel in the primary path.
 
 ```mermaid
 flowchart TD
-    A["Gemini call"] --> B{"got valid\nstructured output?"}
-    B -- yes --> C["label + score + reason\nprovider=gemini"]
-    B -- no --> D["NEUTRAL 0.0\navailable=false\nprovider=fallback"]
+    A["text"] --> B["phrase pass\n(multi-word signals)"]
+    B --> C["token pass\n+ negation window\n+ intensifiers"]
+    C --> D{"polarity ≥ ±1?"}
+    D -- yes --> E["POSITIVE / NEGATIVE\n0.55–0.95\nprovider=local"]
+    D -- no --> F["NEUTRAL 0.5"]
+    E --> G["Gemini cross-check\n(secondary, observability)"]
+    F --> G
 ```
 
 **Lesson learned (documented in the code):** this fallback previously
@@ -330,8 +347,9 @@ must be scanned for weaponized URLs and spoofed sender identities.
 
 ### How we solve it
 
-Two deterministic analyzers (URL, email) + Gemini social-engineering
-detection, fused into one risk verdict.
+Three deterministic analyzers (URL, email, and the rule-based
+social-engineering engine) form the primary tier, fused into one risk
+verdict; Gemini's SE verdict runs as a secondary cross-check.
 
 ### How it works — URL analyzer
 
@@ -363,9 +381,13 @@ flowchart LR
 
 ### Fusion
 
-Gemini's social-engineering verdict (technique taxonomy: URGENCY, OTP_REQUEST,
-AUTHORITY_IMPERSONATION…) is merged with the deterministic analyzers; the
-combined result feeds the recommendation engine.
+The **local rule engine** (`security/social_engineering_detector.py`) is the
+primary SE tier: regex cascade over URGENCY, CREDENTIAL_HARVESTING,
+OTP_REQUEST, PASSWORD_REQUEST, THREAT_COERCION, IMPERSONATION and
+PAYMENT_MANIPULATION with per-rule evidence in the reason string. In the
+unified pipeline Gemini's SE verdict is compared against it (see
+`gemini_agrees_social_engineering`), and the deterministic URL/email
+analyzers always run first — never bypassed by any LLM.
 
 **Files:** `security/url_analyzer.py`, `security/email_analyzer.py`,
 `api/routes.py` (`/api/v1/url/analyze`, `/api/v1/email/analyze`)
@@ -473,35 +495,35 @@ and consumers must know *which path produced the answer*.
 
 ### How we solve it
 
-`GeminiPipeline` is the single decision point: try Gemini → catch typed
-errors → fall back per-capability → annotate `warnings[]`.
+`GeminiPipeline` is the single decision point: build the local primary
+tier first → try Gemini for summary + cross-check → catch typed errors →
+annotate `warnings[]`. Local results are **never** overridden.
 
-### The fallback matrix
+### The tier matrix
 
-| Capability | Primary (Gemini) | Fallback | Warning |
+| Capability | Primary (local, always) | Secondary (Gemini) | Warnings |
 |---|---|---|---|
-| Classification | structured call | local TF-IDF classifier | `needs_review` if low confidence |
-| Sentiment | label+score | `SentimentResult(available=False)` | `gemini_*` error tag |
-| Social engineering | technique taxonomy | deterministic analyzers only | `gemini_*` error tag |
-| Summary | abstractive | extractive summarizer | `summary_mode=extractive` |
+| Classification | local TF-IDF classifier (`needs_review` if low confidence) | agreement cross-check only | `gemini_agrees_classification` / `gemini_*` error tags |
+| Sentiment | NLP lexicon engine (negation/intensifier aware) | agreement cross-check only | `gemini_agrees_sentiment` / `gemini_*` error tags |
+| Social engineering | rule engine (URGENCY, CREDENTIAL_HARVESTING, OTP_REQUEST, …) | agreement cross-check only | `gemini_agrees_social_engineering` / `gemini_*` error tags |
+| Summary | extractive summarizer (fallback) | **Gemini primary** abstractive text | `summary_fallback_extractive` on failure |
 
 ```mermaid
 flowchart TD
-    A["GeminiPipeline.run()"] --> B{"provider\navailable?"}
-    B -- no --> F["fallback matrix"]
-    B -- yes --> C["provider.analyze()"]
-    C -->|"RateLimit"| F
-    C -->|"Timeout"| F
-    C -->|"Validation"| F
-    C -->|"Config/other"| F
-    C -->|OK| D["build from Gemini"]
-    F --> E["build from local models\n+ warnings[]"]
-    D --> G["GeminiPipelineResult\nprovider=gemini"]
-    E --> H["GeminiPipelineResult\nprovider=local|fallback"]
+    A["GeminiPipeline.run()"] --> B["build from local\nML/NLP engines"]
+    B --> C{"provider\navailable?"}
+    C -- no --> F["summary: extractive\n+ warning"]
+    C -- yes --> D["provider.analyze()"]
+    D -->|"RateLimit/Timeout/\nValidation/other"| F
+    D -->|OK| E["summary: Gemini text"]
+    E --> G["cross-check vs local\ngemini_agrees_* warnings"]
+    F --> H["GeminiPipelineResult\nprovider=local"]
+    G --> H
 ```
 
 **Invariant:** `run()` **never raises**. Every caller gets a fully populated
-result; `provider` + `warnings` carry the provenance story.
+result; the sentiment/SE `provider` fields plus `warnings` carry the
+provenance story.
 
 **Files:** `orchestration/pipeline.py`
 
