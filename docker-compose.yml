@@ -1,15 +1,92 @@
+# Solwin — full integrated stack for Cloud Run / local Docker
+# Build once at the repo root; every service is one deployable container.
+#
+#   docker compose up --build            (local stack)
+#   gcloud builds submit --config cloudbuild.yaml .   (Google Cloud)
+#
+# Cloud Run note: services reach each other by service URL, not container name,
+# so in Cloud Run set ML_SERVICE_URL / DATA_SERVICE_URL to the deployed service
+# URLs (see deploy/README-gcp.md).
+
 services:
-  ml-service:
-    build: .
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-solwin}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
-      - "8000:8000"
-    env_file:
-      - path: .env
-        required: false
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-solwin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ml-service:
+    build: ./app/ml_services
+    restart: unless-stopped
     environment:
       MODEL_DIR: /app/models
+      GEMINI_ENABLED: "true"
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+    expose:
+      - "8000"
     volumes:
-      - ./models:/app/models:ro
-    read_only: true
-    tmpfs:
-      - /tmp
+      - ./app/ml_services/models:/app/models:ro
+
+  backend:
+    build: ./app/Backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-service:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-solwin}
+      ML_SERVICE_URL: http://ml-service:8000
+      DATA_SERVICE_URL: http://data-api:8000
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # Apply alembic migrations on boot (safe on an initialized DB; needed
+      # on a fresh Cloud SQL instance where create_all is not enough).
+      RUN_MIGRATIONS: "1"
+      APP_ENV: production
+      DEBUG: "false"
+    ports:
+      - "8001:8001"
+
+  data-api:
+    build: ./app/data
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-solwin}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - data_uploads:/app/uploads
+    expose:
+      - "8000"
+
+  frontend:
+    build: ./app/frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+      - data-api
+    environment:
+      BACKEND_SERVICE_URL: http://backend:8001
+      DATA_SERVICE_URL: http://data-api:8000
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
+  data_uploads:
