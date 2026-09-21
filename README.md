@@ -90,7 +90,6 @@ Requires `GEMINI_API_KEY` in `.env` (see `.env.example`) for summaries and cross
 | [`docs/ml-contract.md`](docs/ml-contract.md) | ML service API contract and canonical `CustomerReviewOutput` schema |
 | [`docs/data-pipeline.md`](docs/data-pipeline.md) | Dataset profile, leakage controls, taxonomy mapping, preprocessing spec |
 | [`docs/database-schema.md`](docs/database-schema.md) | PostgreSQL schema: conversations, messages, analyses, threats, customer_reviews |
-| [`docs/hackathon-scoring-guide.md`](docs/hackathon-scoring-guide.md) | Scoring criteria → implementation map with demo pointers |
 | [`docs/known-limitations.md`](docs/known-limitations.md) | Honest constraints: dataset limits, model quality metrics |
 | Module READMEs | [`app/ml_services`](app/ml_services/README.md) · [`app/Backend`](app/Backend/README.md) · [`app/data`](app/data/README.md) · [`app/frontend`](app/frontend/README.md) |
 | Deployment | [`deploy/README-gcp.md`](deploy/README-gcp.md) (Cloud Run + Cloud SQL + Cloud Build) |

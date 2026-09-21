@@ -2,7 +2,7 @@
 
 **Source:** "Hackathon System Requirements — AI-Powered Customer Support Intelligence & Security Platform" (2 pages).
 **Verdict: all 10 core capabilities implemented ✅ · all 10 mandatory minimums met ✅**
-Gap analysis and demo pointers included. Companion to `docs/hackathon-scoring-guide.md` (which maps the same features to the judging rubric).
+Gap analysis and demo pointers included.
 
 ---
 
