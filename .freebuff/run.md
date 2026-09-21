@@ -4,6 +4,22 @@ Four services run together: ML service (:8000), Backend API (:8001), Data API (:
 feedback inbox), Frontend (:5173). Default databases are SQLite so no Postgres is needed
 for local runs.
 
+## 0. One command for everything
+
+`run_dev.sh` (repo root) handles the whole lifecycle — missing venvs/deps/DBs are built
+automatically, each service waits for its health check, and on macOS services launch
+under **launchd** so they survive the session (plain backgrounding gets reaped here):
+
+```
+./run_dev.sh            # start whatever isn't running + wait for health
+./run_dev.sh --restart  # stop everything, then start
+./run_dev.sh --reset    # --restart + wipe/reseed both DBs (inbox seed + demo bootstrap)
+./run_dev.sh --stop     # stop all services + launchd jobs
+./run_dev.sh --status   # health table only
+```
+
+Logs: `.freebuff/logs/{ml,backend,data,frontend}.log` · launchd labels: `solwin-dev-*`.
+
 ## 1. Reproduce the artifacts (fresh checkout)
 
 1. **Python deps**
