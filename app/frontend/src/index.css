@@ -1,0 +1,164 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Solwin design tokens — practical operator console.
+   Light is the default; dark mode via `html.dark` (class strategy).
+   The palette is deliberately neutral; color is reserved for meaning
+   (status, priority, risk). No glows, no gradients, no decorative
+   animation. Density is preferred over decoration.
+   ============================================================ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --bg: #f5f6f8;
+  --card: #ffffff;
+  --elevated: #f8f9fb;
+  --inset: #f2f3f6;
+  --border: #e4e6eb;
+  --border-strong: #d2d5db;
+
+  /* Text */
+  --text-1: #17181a;
+  --text-2: #5f6368;
+  --text-3: #9a9fa6;
+
+  /* Accent (single, quiet) */
+  --accent: #2f6fed;
+  --accent-weak: #eef3fe;
+  --accent-border: #c8d9fb;
+
+  /* Semantic */
+  --ok: #1a7f37;
+  --ok-weak: #e9f5ec;
+  --ok-border: #c4e3cc;
+  --warn: #95560a;
+  --warn-weak: #fdf3e0;
+  --warn-border: #f2ddb4;
+  --danger: #b42318;
+  --danger-weak: #fdeceb;
+  --danger-border: #f5c9c5;
+
+  /* Shadows: essentially flat */
+  --shadow-1: 0 1px 2px rgba(16, 20, 28, 0.05);
+  --shadow-2: 0 2px 8px rgba(16, 20, 28, 0.07);
+
+  --scrollbar-thumb: #d2d5db;
+  --scrollbar-track: transparent;
+}
+
+html.dark {
+  color-scheme: dark;
+
+  --bg: #131417;
+  --card: #1b1d21;
+  --elevated: #202227;
+  --inset: #26282e;
+  --border: #2d2f36;
+  --border-strong: #3c3f47;
+
+  --text-1: #ededef;
+  --text-2: #a2a5ad;
+  --text-3: #6f727a;
+
+  --accent: #6d9bff;
+  --accent-weak: #1d2434;
+  --accent-border: #31415f;
+
+  --ok: #57a86b;
+  --ok-weak: #17241b;
+  --ok-border: #2b4433;
+  --warn: #d29a44;
+  --warn-weak: #292116;
+  --warn-border: #4a3a1d;
+  --danger: #e5695e;
+  --danger-weak: #2b1917;
+  --danger-border: #52282a;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-2: 0 2px 10px rgba(0, 0, 0, 0.4);
+
+  --scrollbar-thumb: #3c3f47;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-1);
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Keep native controls consistent with the theme */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+
+/* ---------- utility classes used across the app ---------- */
+
+.surface-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.surface-inset {
+  background: var(--inset);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+/* Section label: small caps, quiet */
+.section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Focus visibility for keyboard users, minimal footprint */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 6px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+/* Recharts text follows the theme */
+.recharts-text tspan {
+  fill: var(--text-3);
+  font-size: 11px;
+}
+.recharts-cartesian-axis-line,
+.recharts-cartesian-axis-tick-line {
+  stroke: var(--border);
+}

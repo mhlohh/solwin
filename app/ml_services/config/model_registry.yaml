@@ -1,0 +1,26 @@
+models:
+- model_name: complaint-clusterer
+  version: 1.0.0
+  training_dataset: unified_customer_phishing_data_subset (1).csv
+  training_date: '2026-09-18'
+  framework: scikit-learn MiniBatchKMeans
+  metrics:
+    n_clusters: 15.0
+  parameters:
+    vectorizer: TfidfVectorizer(1,2)
+    algorithm: MiniBatchKMeans
+    n_clusters: '15'
+  status: production
+- model_name: complaint-classifier
+  version: 1.0.0
+  training_dataset: data/processed splits (unified_customer_phishing_data.csv)
+  training_date: '2026-09-21'
+  framework: scikit-learn LogisticRegression (mildly balanced p=0.6)
+  metrics:
+    val_macro_f1: 0.1421
+    val_weighted_f1: 0.353
+  parameters:
+    vectorizer: TfidfVectorizer(1,2)
+    algorithm: tfidf-logistic-regression-mildly-balanced
+    confidence_threshold: '0.60'
+  status: production

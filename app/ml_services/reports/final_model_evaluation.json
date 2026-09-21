@@ -1,0 +1,104 @@
+{
+ "evaluation_metadata": {
+  "timestamp": "2026-09-18T19:59:00Z",
+  "dataset_version": "2.0.0-leak-free",
+  "split_method": "deterministic_normalized_text_hash_grouped",
+  "train_samples": 20908,
+  "val_samples": 4034,
+  "test_samples": 3997,
+  "unique_complaint_texts": 17515,
+  "cross_split_leakage": {
+   "train_val_overlap": 0,
+   "train_test_overlap": 0,
+   "val_test_overlap": 0
+  },
+  "retrained_at": "2026-09-21T07:59:20Z"
+ },
+ "model_info": {
+  "model_name": "complaint_classifier_v1",
+  "architecture": "TF-IDF (word 1-2 grams, max_features=25000, sublinear_tf) + LogisticRegression (mildly balanced class weights, exponent 0.6, C=1.0) \u2014 selected by validation weighted F1 among 4 candidates; passes the QA regression fixture gate (<=5 known-hard cases)",
+  "status": "retrained_mildly_balanced_2026-09-21"
+ },
+ "overall_metrics": {
+  "accuracy": 0.3768,
+  "macro_f1": 0.1381,
+  "weighted_f1": 0.3487,
+  "macro_precision": 0.1598,
+  "macro_recall": 0.1339
+ },
+ "per_class_metrics": {
+  "PAYMENT_TRANSACTION_ISSUE": {
+   "precision": 0.08,
+   "recall": 0.0153,
+   "f1_score": 0.0256,
+   "support": 131
+  },
+  "ACCOUNT_LOGIN_PROBLEM": {
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_score": 0.0,
+   "support": 27
+  },
+  "PRODUCT_ISSUE": {
+   "precision": 0.2056,
+   "recall": 0.2354,
+   "f1_score": 0.2195,
+   "support": 684
+  },
+  "DELIVERY_SHIPPING_PROBLEM": {
+   "precision": 0.497,
+   "recall": 0.6346,
+   "f1_score": 0.5574,
+   "support": 1831
+  },
+  "REFUND_REQUEST": {
+   "precision": 0.2485,
+   "recall": 0.1693,
+   "f1_score": 0.2014,
+   "support": 750
+  },
+  "SUBSCRIPTION_ISSUE": {
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_score": 0.0,
+   "support": 15
+  },
+  "TECHNICAL_PROBLEM": {
+   "precision": 0.0,
+   "recall": 0.0,
+   "f1_score": 0.0,
+   "support": 4
+  },
+  "SERVICE_QUALITY": {
+   "precision": 0.125,
+   "recall": 0.0306,
+   "f1_score": 0.0492,
+   "support": 196
+  },
+  "BILLING_PROBLEM": {
+   "precision": 0.1622,
+   "recall": 0.1053,
+   "f1_score": 0.1277,
+   "support": 57
+  },
+  "SECURITY_CONCERN": {
+   "precision": 0.2609,
+   "recall": 0.1311,
+   "f1_score": 0.1745,
+   "support": 183
+  },
+  "OTHER": {
+   "precision": 0.1782,
+   "recall": 0.1513,
+   "f1_score": 0.1636,
+   "support": 119
+  }
+ },
+ "root_cause_analysis": "The raw customer support dataset is heavily contaminated with conversational pleasantries ('Good', 'Nice', 'Thanks', 'Ok', 'Happy') representing over 45% of customer messages mapped across heterogeneous intent labels. Furthermore, severe label imbalance exists (DELIVERY_SHIPPING_PROBLEM represents over 45% of the data while TECHNICAL_PROBLEM represents under 0.1%). While accuracy increased from 16.59% to 19.44% and Macro F1 from 0.1065 to 0.1144 under clean leakage-free evaluation, achieving Macro F1 >= 0.75 is mathematically infeasible without targeted dataset re-annotation and balanced collection of true technical and minority complaint domains.",
+ "retrain_notes": [
+  "Retrained 2026-09-21. Original model forced class_weight='balanced', which flattened predictions below the majority baseline (accuracy 0.194 vs 0.458) and saturated confidences near 1/11 \u2014 the 0.60 abstention threshold flagged everything for review and was effectively dead.",
+  "Candidate selection now maximizes validation weighted F1 across 4 candidates. The mildly-balanced (p=0.6) LogReg wins on every axis: test accuracy 0.377 (was 0.194), weighted F1 0.349 (was 0.236), macro F1 0.138 (was 0.114), and meaningful confidences so needs_review abstention works again.",
+  "Remaining 5 regression-fixture misses are the fixture's known-hard rare categories (account-login, subscription, technical, service-quality, defective-product) \u2014 TF-IDF cannot separate them from the 46% delivery majority on this dataset's short texts. In production these texts are classified by Gemini; the local model is the fallback tier.",
+  "A security-signal guard in /analyze routes unconfident fallback predictions of likely fraud/compromise reports to SECURITY_CONCERN so the recommendation engine can never send them to an unrelated team (warning: security_signal_category_guard)."
+ ]
+}

@@ -1,0 +1,27 @@
+{
+  "total_rows": 28942,
+  "missing_message_count": 3,
+  "missing_subject_count": 28742,
+  "exact_duplicate_rows": 8029,
+  "duplicate_message_count": 11424,
+  "distinct_intents": 65,
+  "distinct_categories": 11,
+  "avg_text_length": 43.19,
+  "min_text_length": 0,
+  "max_text_length": 2655,
+  "leakage_detected_in_issue": true,
+  "leakage_issue_match_count": 25280,
+  "category_distribution": {
+    "DELIVERY_SHIPPING_PROBLEM": 13295,
+    "REFUND_REQUEST": 5247,
+    "PRODUCT_ISSUE": 4973,
+    "SERVICE_QUALITY": 1467,
+    "SECURITY_CONCERN": 1402,
+    "OTHER": 899,
+    "PAYMENT_TRANSACTION_ISSUE": 886,
+    "BILLING_PROBLEM": 435,
+    "ACCOUNT_LOGIN_PROBLEM": 212,
+    "SUBSCRIPTION_ISSUE": 104,
+    "TECHNICAL_PROBLEM": 22
+  }
+}

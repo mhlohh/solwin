@@ -1,0 +1,118 @@
+# Declarative business rules for customer support actions
+# Evaluates category, urgency, resolution status, and security signals
+
+version: "1.0.0"
+rules:
+  # 1. Security incidents take highest precedence
+  - id: "RULE_SECURITY_INCIDENT"
+    priority: 10
+    conditions:
+      security_risk: ["HIGH", "CRITICAL"]
+    primary_action: "ESCALATE_TO_SECURITY_TEAM"
+    secondary_actions: ["RESET_ACCOUNT_ACCESS", "VERIFY_CUSTOMER_IDENTITY"]
+    rationale: "High or critical security indicators require immediate escalation to the security operations team."
+
+  # 2. Account compromised / Takeover login problem
+  - id: "RULE_ACCOUNT_TAKEOVER"
+    priority: 15
+    conditions:
+      category: ["ACCOUNT_LOGIN_PROBLEM"]
+      urgency: ["CRITICAL"]
+    primary_action: "RESET_ACCOUNT_ACCESS"
+    secondary_actions: ["VERIFY_CUSTOMER_IDENTITY", "ESCALATE_TO_SECURITY_TEAM"]
+    rationale: "Critical account login compromise requires immediate credential reset and identity verification."
+
+  # 3. Critical Security Escalation (financial theft, active breach, fraud)
+  - id: "RULE_CRITICAL_SECURITY_ESCALATION"
+    priority: 16
+    conditions:
+      urgency: ["CRITICAL"]
+      category: ["SECURITY_CONCERN", "PAYMENT_TRANSACTION_ISSUE", "OTHER"]
+    primary_action: "ESCALATE_TO_SECURITY_TEAM"
+    secondary_actions: ["VERIFY_CUSTOMER_IDENTITY", "RESET_ACCOUNT_ACCESS"]
+    rationale: "Active security breach, financial theft, or critical fraud demands immediate security team escalation."
+
+  # 4. Critical Payment / Fraudulent transaction
+  - id: "RULE_PAYMENT_FRAUD_CRITICAL"
+    priority: 30
+    conditions:
+      category: ["PAYMENT_TRANSACTION_ISSUE", "BILLING_PROBLEM"]
+      urgency: ["CRITICAL", "HIGH"]
+    primary_action: "ESCALATE_TO_PAYMENT_TEAM"
+    secondary_actions: ["INITIATE_REFUND_REVIEW", "VERIFY_CUSTOMER_IDENTITY"]
+    rationale: "Unauthorized transactions, double-charges, or payment failures require prompt payment team investigation."
+
+
+  # 4. Outages / Critical technical disruptions
+  - id: "RULE_TECHNICAL_OUTAGE"
+    priority: 40
+    conditions:
+      category: ["TECHNICAL_PROBLEM"]
+      urgency: ["CRITICAL", "HIGH"]
+    primary_action: "ESCALATE_TO_TECHNICAL_TEAM"
+    secondary_actions: ["MONITOR", "HUMAN_REVIEW"]
+    rationale: "Technical failures or system outages must be escalated to engineering/technical support."
+
+  # 5. Refund Requests
+  - id: "RULE_REFUND_HANDLING"
+    priority: 50
+    conditions:
+      category: ["REFUND_REQUEST"]
+    primary_action: "INITIATE_REFUND_REVIEW"
+    secondary_actions: ["REQUEST_MORE_INFORMATION", "ESCALATE_TO_PAYMENT_TEAM"]
+    rationale: "Explicit refund or cancellation request requires initiating refund verification."
+
+  # 6. Delivery delays & shipping problems
+  - id: "RULE_DELIVERY_ISSUE"
+    priority: 60
+    conditions:
+      category: ["DELIVERY_SHIPPING_PROBLEM"]
+      urgency: ["CRITICAL", "HIGH"]
+    primary_action: "ESCALATE_TO_DELIVERY_TEAM"
+    secondary_actions: ["REQUEST_MORE_INFORMATION", "MONITOR"]
+    rationale: "Urgent or delayed package issues must be coordinated with logistics and courier partners."
+
+  # 7. Routine delivery / shipping queries
+  - id: "RULE_DELIVERY_ROUTINE"
+    priority: 70
+    conditions:
+      category: ["DELIVERY_SHIPPING_PROBLEM"]
+    primary_action: "STANDARD_SUPPORT_RESPONSE"
+    secondary_actions: ["MONITOR"]
+    rationale: "Routine delivery tracking inquiry handled with standard tracking update."
+
+  # 8. Service quality complaints
+  - id: "RULE_SERVICE_QUALITY"
+    priority: 80
+    conditions:
+      category: ["SERVICE_QUALITY"]
+    primary_action: "HUMAN_REVIEW"
+    secondary_actions: ["STANDARD_SUPPORT_RESPONSE"]
+    rationale: "Agent conduct and service quality disputes should be reviewed by a support manager."
+
+  # 9. Already resolved complaints
+  - id: "RULE_RESOLVED_COMPLAINT"
+    priority: 90
+    conditions:
+      resolution: ["RESOLVED"]
+    primary_action: "STANDARD_SUPPORT_RESPONSE"
+    secondary_actions: ["MONITOR"]
+    rationale: "Issue is confirmed resolved by customer; send standard closure / satisfaction message."
+
+  # 10. Critical urgency catch-all (never allow CRITICAL to fall through to standard support)
+  - id: "RULE_CRITICAL_URGENCY_FALLBACK"
+    priority: 950
+    conditions:
+      urgency: ["CRITICAL"]
+    primary_action: "HUMAN_REVIEW"
+    secondary_actions: ["ESCALATE_TO_SECURITY_TEAM"]
+    rationale: "Unmatched critical complaints must be escalated for human review, never automated canned responses."
+
+  # 11. Default fallback
+  - id: "RULE_DEFAULT_FALLBACK"
+    priority: 999
+    conditions: {}
+    primary_action: "STANDARD_SUPPORT_RESPONSE"
+    secondary_actions: ["REQUEST_MORE_INFORMATION"]
+    rationale: "Standard support triage for general customer queries."
+

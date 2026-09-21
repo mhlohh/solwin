@@ -1,0 +1,121 @@
+# ==============================================================================
+# Solwin Repository .gitignore
+# Canonical repository-wide gitignore covering all workspace tiers:
+# Python (Backend, ML Services, Data API), Node.js (Frontend), and OS/IDE files.
+# ==============================================================================
+
+# --- Operating System & Desktop Files ---
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# --- Python & Bytecode ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- Virtual Environments ---
+.venv/
+venv/
+ENV/
+env/
+.env/
+env.bak/
+venv.bak/
+
+# --- Environment Variables & Secrets ---
+# Never commit credentials, private keys, access tokens, API keys, or env files
+.env
+.env.*
+.env.local
+.env.*.local
+!.env.example
+!.env.*.example
+
+# --- Python Testing, Coverage & Linters ---
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# --- Node.js & Frontend ---
+node_modules/
+.pnpm-store/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.pnpm-debug.log*
+package-lock.json.bak
+app/frontend/dist/
+app/frontend/dist-ssr/
+*.tsbuildinfo
+.eslintcache
+
+# --- Databases, Storage & Local Uploads ---
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+app/data/uploads/
+uploads/
+
+# --- IDEs & Editors ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*.swn
+*.sw?
+*.bak
+*~
+.project
+.pydevproject
+.settings/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# --- Logs & Temporary Test Artifacts ---
+*.log
+sample_*
+downloaded_*
+bad_file.txt
+scratch/
+tmp/
+temp/

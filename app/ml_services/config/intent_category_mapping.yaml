@@ -1,0 +1,128 @@
+# Mapping of 65 raw intents to the 11 BusinessCategory classes:
+# PAYMENT_TRANSACTION_ISSUE, ACCOUNT_LOGIN_PROBLEM, PRODUCT_ISSUE,
+# DELIVERY_SHIPPING_PROBLEM, REFUND_REQUEST, SUBSCRIPTION_ISSUE,
+# TECHNICAL_PROBLEM, SERVICE_QUALITY, BILLING_PROBLEM, SECURITY_CONCERN, OTHER
+
+version: "1.0.0"
+description: "Explicit intent-to-business-category mapping for customer complaint intelligence."
+default_category: "OTHER"
+
+categories:
+  - PAYMENT_TRANSACTION_ISSUE
+  - ACCOUNT_LOGIN_PROBLEM
+  - PRODUCT_ISSUE
+  - DELIVERY_SHIPPING_PROBLEM
+  - REFUND_REQUEST
+  - SUBSCRIPTION_ISSUE
+  - TECHNICAL_PROBLEM
+  - SERVICE_QUALITY
+  - BILLING_PROBLEM
+  - SECURITY_CONCERN
+  - OTHER
+
+# Explicit mapping of all 65 source dataset intents
+mappings:
+  # --- PAYMENT_TRANSACTION_ISSUE ---
+  "Online Payment Issues": "PAYMENT_TRANSACTION_ISSUE"
+  "Payment related Queries": "PAYMENT_TRANSACTION_ISSUE"
+  "Payment pending": "PAYMENT_TRANSACTION_ISSUE"
+  "Wallet related": "PAYMENT_TRANSACTION_ISSUE"
+  "Card/EMI": "PAYMENT_TRANSACTION_ISSUE"
+  "PayLater related": "PAYMENT_TRANSACTION_ISSUE"
+  "Instant discount": "PAYMENT_TRANSACTION_ISSUE"
+  "Other Cashback": "PAYMENT_TRANSACTION_ISSUE"
+  "Shopzilla Rewards": "PAYMENT_TRANSACTION_ISSUE"
+  "e-Gift Voucher": "PAYMENT_TRANSACTION_ISSUE"
+
+  # --- ACCOUNT_LOGIN_PROBLEM ---
+  "Unable to Login": "ACCOUNT_LOGIN_PROBLEM"
+  "Signup Issues": "ACCOUNT_LOGIN_PROBLEM"
+  "Account updation": "ACCOUNT_LOGIN_PROBLEM"
+  "Other Account Related Issues": "ACCOUNT_LOGIN_PROBLEM"
+
+  # --- PRODUCT_ISSUE ---
+  "Product Specific Information": "PRODUCT_ISSUE"
+  "Product related Issues": "PRODUCT_ISSUE"
+  "Wrong": "PRODUCT_ISSUE"
+  "Missing": "PRODUCT_ISSUE"
+  "Damaged": "PRODUCT_ISSUE"
+  "Exchange / Replacement": "PRODUCT_ISSUE"
+  "Installation/demo": "PRODUCT_ISSUE"
+  "Technician Visit": "PRODUCT_ISSUE"
+  "Warranty related": "PRODUCT_ISSUE"
+
+  # --- DELIVERY_SHIPPING_PROBLEM ---
+  "Order status enquiry": "DELIVERY_SHIPPING_PROBLEM"
+  "Delayed": "DELIVERY_SHIPPING_PROBLEM"
+  "Reverse Pickup Enquiry": "DELIVERY_SHIPPING_PROBLEM"
+  "Priority delivery": "DELIVERY_SHIPPING_PROBLEM"
+  "Unable to track": "DELIVERY_SHIPPING_PROBLEM"
+  "Order Verification": "DELIVERY_SHIPPING_PROBLEM"
+  "Customer Requested Modifications": "DELIVERY_SHIPPING_PROBLEM"
+  "Seller Cancelled Order": "DELIVERY_SHIPPING_PROBLEM"
+
+  # --- REFUND_REQUEST ---
+  "Refund Enquiry": "REFUND_REQUEST"
+  "Refund Related Issues": "REFUND_REQUEST"
+  "Return request": "REFUND_REQUEST"
+  "Return cancellation": "REFUND_REQUEST"
+  "COD Refund Details": "REFUND_REQUEST"
+  "Not Needed": "REFUND_REQUEST"
+
+  # --- SUBSCRIPTION_ISSUE ---
+  "Shopzila Premium Related": "SUBSCRIPTION_ISSUE"
+  "Life Insurance": "SUBSCRIPTION_ISSUE"
+
+  # --- TECHNICAL_PROBLEM ---
+  "App/website Related": "TECHNICAL_PROBLEM"
+  "Issues with Shopzilla App": "TECHNICAL_PROBLEM"
+
+  # --- SERVICE_QUALITY ---
+  "UnProfessional Behaviour": "SERVICE_QUALITY"
+  "Service Centres Related": "SERVICE_QUALITY"
+  "Service Center - Service Denial": "SERVICE_QUALITY"
+  "Call back request": "SERVICE_QUALITY"
+  "Call disconnected": "SERVICE_QUALITY"
+
+  # --- BILLING_PROBLEM ---
+  "Billing Related": "BILLING_PROBLEM"
+  "Invoice request": "BILLING_PROBLEM"
+  "Commission related": "BILLING_PROBLEM"
+
+  # --- SECURITY_CONCERN ---
+  "Credential Harvesting": "SECURITY_CONCERN"
+  "Financial Scam": "SECURITY_CONCERN"
+  "HR/Scam/Reward": "SECURITY_CONCERN"
+  "Malware Attachment": "SECURITY_CONCERN"
+  "Malware Delivery": "SECURITY_CONCERN"
+  "Security Notification": "SECURITY_CONCERN"
+  "Fake Invoice/Download": "SECURITY_CONCERN"
+  "Fraudulent User": "SECURITY_CONCERN"
+
+  # --- OTHER ---
+  "General Enquiry": "OTHER"
+  "Informational": "OTHER"
+  "Transactional": "OTHER"
+  "Self-Help": "OTHER"
+  "Affiliate Offers": "OTHER"
+  "Seller onboarding": "OTHER"
+  "Policy Related": "OTHER"
+  "Others": "OTHER"
+
+# Documentation for ambiguous mappings
+ambiguous_intent_notes:
+  "Fraudulent User":
+    mapped_to: "SECURITY_CONCERN"
+    rationale: "Flagged in raw dataset as fraudulent user activity, though text often contains brief conversational responses."
+  "Not Needed":
+    mapped_to: "REFUND_REQUEST"
+    rationale: "Represents customer cancelling or returning item because it is no longer required."
+  "Shopzila Premium Related":
+    mapped_to: "SUBSCRIPTION_ISSUE"
+    rationale: "Membership/premium tier queries and renewal issues."
+  "Seller Cancelled Order":
+    mapped_to: "DELIVERY_SHIPPING_PROBLEM"
+    rationale: "Order fulfillment interruption handled alongside shipping/delivery updates."
+  "Exchange / Replacement":
+    mapped_to: "PRODUCT_ISSUE"
+    rationale: "Triggered by defective, wrong, or unsuitable products."

@@ -1,0 +1,311 @@
+{
+  "clusters": [
+    {
+      "cluster_id": 12,
+      "name": "Delivery Shipping Problem: general, complaint",
+      "size": 10343,
+      "percentage": 49.47,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "general",
+        "complaint"
+      ],
+      "representative_examples": [
+        "Good",
+        "Ok",
+        "Good customer support",
+        "Very good customer service.",
+        "Everything is very Good. Thanks Shopzilla"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 0,
+      "name": "Delivery Shipping Problem: problem, best",
+      "size": 4451,
+      "percentage": 21.29,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "problem",
+        "best",
+        "person",
+        "product",
+        "help"
+      ],
+      "representative_examples": [
+        "My problem solvedThinks for help",
+        "They help very well in my problem",
+        "Best responseBest help",
+        "MY PROBLEM IS NOT SOLVED. PLEASE HELP",
+        "No help this person"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 5,
+      "name": "Delivery Shipping Problem: behavior, products",
+      "size": 1122,
+      "percentage": 5.37,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "behavior",
+        "products",
+        "fast",
+        "make",
+        "supporting"
+      ],
+      "representative_examples": [
+        "Make fast",
+        "Fast Service super",
+        "Good behavior",
+        "Good behavior and helpful advisory keep it up?",
+        "Very good behavior"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 2,
+      "name": "Delivery Shipping Problem: voice, app",
+      "size": 1027,
+      "percentage": 4.91,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "voice",
+        "app",
+        "customers",
+        "number",
+        "supportive"
+      ],
+      "representative_examples": [
+        "Nice voice",
+        "Nice voice and multitalented??",
+        "Voice is very sweets"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 7,
+      "name": "Delivery Shipping Problem: bahut, hai",
+      "size": 1018,
+      "percentage": 4.87,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "bahut",
+        "hai",
+        "really",
+        "language",
+        "communication"
+      ],
+      "representative_examples": [
+        "Bahut aachhe sir hai",
+        "Bahut badhiya language bahut badi acchi ki Hui Hai thank u",
+        "Very goodMujhe bahut",
+        "Bahut",
+        "Customer service se baat karne bahut bar message karna parta hai."
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 10,
+      "name": "Delivery Shipping Problem: improve, pathetic",
+      "size": 626,
+      "percentage": 2.99,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "improve",
+        "pathetic",
+        "resolution",
+        "amazing",
+        "like"
+      ],
+      "representative_examples": [
+        "Pathetic service, no resolution",
+        "Improve your",
+        "Customer service improve",
+        "Improve",
+        "Improve service"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 11,
+      "name": "Delivery Shipping Problem: information, helpfull",
+      "size": 500,
+      "percentage": 2.39,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "information",
+        "helpfull",
+        "need",
+        "proper",
+        "impressed"
+      ],
+      "representative_examples": [
+        "Good helpful information ??",
+        "Good information",
+        "First you have to give information"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 8,
+      "name": "Delivery Shipping Problem: satisfied, refund",
+      "size": 487,
+      "percentage": 2.33,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "satisfied",
+        "refund",
+        "nyc",
+        "lot",
+        "money"
+      ],
+      "representative_examples": [
+        "Am satisfied",
+        "Satisfied..",
+        "Over all satisfied, great!",
+        "Not satisfied at all",
+        "Satisfied with customer care service"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 1,
+      "name": "Delivery Shipping Problem: helping, madam",
+      "size": 339,
+      "percentage": 1.62,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "helping",
+        "madam",
+        "10",
+        "representative",
+        "reach"
+      ],
+      "representative_examples": [
+        "Thanku for helping",
+        "Thank you so much helping me",
+        "Thanks you for Helping",
+        "for helping me",
+        "Thank you for helping"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 14,
+      "name": "Delivery Shipping Problem: excellent",
+      "size": 326,
+      "percentage": 1.56,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "excellent"
+      ],
+      "representative_examples": [
+        "Excellent",
+        "Customer support is very excellent"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 4,
+      "name": "Delivery Shipping Problem: bad",
+      "size": 240,
+      "percentage": 1.15,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "bad"
+      ],
+      "representative_examples": [
+        "Very bad",
+        "Bad",
+        "Very bad Service",
+        "Very bad service"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 9,
+      "name": "Delivery Shipping Problem: services, provided",
+      "size": 215,
+      "percentage": 1.03,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "services",
+        "provided",
+        "useless",
+        "missing",
+        "mem"
+      ],
+      "representative_examples": [
+        "Nice services",
+        "Happy with all services",
+        "Shopzilla services is 0",
+        "Good services."
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 13,
+      "name": "Delivery Shipping Problem: resolved, issue resolved",
+      "size": 154,
+      "percentage": 0.74,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "resolved",
+        "issue resolved",
+        "issue",
+        "interaction",
+        "resolved issue"
+      ],
+      "representative_examples": [
+        "Issue not resolved yet",
+        "My issue is still not resolved.",
+        "My issue not resolved",
+        "Issue resolved"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 6,
+      "name": "Delivery Shipping Problem: supportive, issue",
+      "size": 44,
+      "percentage": 0.21,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "supportive",
+        "issue"
+      ],
+      "representative_examples": [
+        "Not supportive customer care",
+        "Good supportive executive",
+        "Very nice and supportive",
+        "The customer service was very well.... They are very supportive??",
+        "The customer service was very well... They are very supportive??"
+      ],
+      "model_version": "1.0.0"
+    },
+    {
+      "cluster_id": 3,
+      "name": "Delivery Shipping Problem: excellent, satisfied",
+      "size": 16,
+      "percentage": 0.08,
+      "dominant_category": "DELIVERY_SHIPPING_PROBLEM",
+      "keywords": [
+        "excellent",
+        "satisfied",
+        "overall",
+        "suggestion",
+        "super"
+      ],
+      "representative_examples": [
+        "Excellent help",
+        "Excellent ?? service provide",
+        "Excellent services, keep it up",
+        "No one you are so excellent and satisfied for cosmer executive",
+        "Your company and customer care support or excellent"
+      ],
+      "model_version": "1.0.0"
+    }
+  ],
+  "total_clusters": 15
+}

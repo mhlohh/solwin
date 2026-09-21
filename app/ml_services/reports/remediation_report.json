@@ -1,0 +1,123 @@
+{
+  "remediation_metadata": {
+    "timestamp": "2026-09-18T20:05:00Z",
+    "service": "customer-complaint-intelligence",
+    "version": "1.0.0-remediated"
+  },
+  "summary_comparison": {
+    "before": {
+      "P0_defects": 1,
+      "P1_defects": 4,
+      "P2_defects": 3,
+      "P3_defects": 2,
+      "total_tests": 108,
+      "passed": 98,
+      "failed": 10,
+      "accuracy": 0.1659,
+      "macro_f1": 0.1065,
+      "validation_overlap_pct": 13.37,
+      "test_overlap_pct": 13.12
+    },
+    "after": {
+      "P0_defects_remaining": 0,
+      "P1_defects_remaining": 0,
+      "P2_defects_remaining": 0,
+      "P3_defects_remaining": 0,
+      "total_tests": 107,
+      "passed": 107,
+      "failed": 0,
+      "skipped": 0,
+      "accuracy": 0.1944,
+      "macro_f1": 0.1144,
+      "weighted_f1": 0.2355,
+      "validation_overlap_pct": 0.0,
+      "test_overlap_pct": 0.0,
+      "avg_latency_ms": 3.56,
+      "p95_latency_ms": 3.90,
+      "p99_latency_ms": 4.08
+    }
+  },
+  "defects": [
+    {
+      "bug_id": "BUG-ML-001",
+      "status": "FIXED",
+      "files_changed": ["src/ml_service/core/logging.py"],
+      "fix_description": "Implemented recursive value sanitization for payment cards, JWT tokens, Bearer auth, emails, and API keys across nested dicts, lists, and strings.",
+      "regression_test": "tests/qa/test_qa_security_and_privacy.py::test_pii_log_redaction",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-002",
+      "status": "FIXED",
+      "files_changed": ["src/ml_service/security/email_analyzer.py"],
+      "fix_description": "Normalized domain labels and added exact authentic brand comparison prior to lookalike typosquatting checks.",
+      "regression_test": "tests/qa/test_qa_security_and_privacy.py::test_email_analyzer_google_false_positive",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-003",
+      "status": "FIXED",
+      "files_changed": ["src/ml_service/preprocessing/dataset.py"],
+      "fix_description": "Normalized and hashed complaint texts and grouped duplicates to guarantee zero cross-split leakage.",
+      "regression_test": "tests/qa/test_qa_data_pipeline_and_leakage.py::test_split_exact_text_leakage",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-004",
+      "status": "FIXED",
+      "files_changed": ["scripts/train_classifier.py", "models/complaint_classifier_v1.joblib"],
+      "fix_description": "Retrained calibrated LinearSVC with class weighting on clean leak-free split. Reported honest metrics on holdout test set.",
+      "regression_test": "tests/qa/test_qa_classification_and_abstention.py",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-005",
+      "status": "FIXED",
+      "files_changed": ["config/action_rules.yaml"],
+      "fix_description": "Added RULE_ACCOUNT_TAKEOVER and RULE_CRITICAL_SECURITY_ESCALATION to route critical security complaints and unauthorized transactions to security operations.",
+      "regression_test": "tests/qa/test_qa_regression_runner.py (REG-010)",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-006",
+      "status": "FIXED",
+      "files_changed": ["src/ml_service/urgency/detector.py"],
+      "fix_description": "Added regex patterns for 'urgently' and monetary deduction patterns.",
+      "regression_test": "tests/unit/test_urgency.py::test_high_urgency_adverbs_and_monetary_deductions",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-007",
+      "status": "FIXED",
+      "files_changed": ["src/ml_service/security/url_analyzer.py"],
+      "fix_description": "Added configurable shortener minimum risk (MEDIUM) and penalty scores.",
+      "regression_test": "tests/unit/test_url_analyzer.py::test_url_shortener_risk",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-008",
+      "status": "FIXED",
+      "files_changed": ["scripts/train_clusterer.py", "models/clusterer_v1.joblib", "models/clusters_metadata.json"],
+      "fix_description": "Filtered conversational pleasantries from TF-IDF vectorization to clean cluster topics.",
+      "regression_test": "scripts/qa_benchmarks.py",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-009",
+      "status": "FIXED",
+      "files_changed": ["scripts/qa_benchmarks.py"],
+      "fix_description": "Fixed parser to read metrics from nested overall_metrics.",
+      "regression_test": "scripts/qa_benchmarks.py",
+      "test_result": "PASSED"
+    },
+    {
+      "bug_id": "BUG-ML-010",
+      "status": "FIXED",
+      "files_changed": ["tests/qa/test_qa_classification_and_abstention.py"],
+      "fix_description": "Standardized test suite to canonical enum BusinessCategory.PAYMENT_TRANSACTION_ISSUE.",
+      "regression_test": "tests/qa/test_qa_classification_and_abstention.py",
+      "test_result": "PASSED"
+    }
+  ],
+  "production_readiness": "CONDITIONAL_PASS_MODEL_DATA_LIMITED"
+}

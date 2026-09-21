@@ -1,0 +1,266 @@
+{
+  "audit_metadata": {
+    "title": "ML Service QA & Reliability Comprehensive Audit Report",
+    "timestamp": "2026-09-18T18:56:00Z",
+    "auditor": "Senior ML QA & Reliability Engineer",
+    "service": "customer-complaint-intelligence",
+    "version": "0.1.0"
+  },
+  "executive_summary": {
+    "total_tests": 108,
+    "passed": 98,
+    "failed": 10,
+    "skipped": 0,
+    "errors": 0,
+    "pass_rate_pct": 90.74,
+    "bugs_by_severity": {
+      "P0_critical": 1,
+      "P1_high": 4,
+      "P2_medium": 3,
+      "P3_low": 2
+    },
+    "production_readiness": "REJECTED_BLOCKED_ON_P0_P1"
+  },
+  "ml_quality": {
+    "dataset": "data/processed/test.csv",
+    "test_samples": 4341,
+    "macro_f1": 0.1065,
+    "weighted_f1": 0.2099,
+    "accuracy": 0.1659,
+    "macro_precision": 0.1332,
+    "macro_recall": 0.1389,
+    "quality_gate_threshold": 0.75,
+    "quality_gate_status": "FAIL",
+    "per_class_metrics": {
+      "PAYMENT_TRANSACTION_ISSUE": {"precision": 0.0455, "recall": 0.0902, "f1_score": 0.0605, "support": 133},
+      "ACCOUNT_LOGIN_PROBLEM": {"precision": 0.0105, "recall": 0.2500, "f1_score": 0.0201, "support": 32},
+      "PRODUCT_ISSUE": {"precision": 0.2151, "recall": 0.1796, "f1_score": 0.1958, "support": 746},
+      "DELIVERY_SHIPPING_PROBLEM": {"precision": 0.5922, "recall": 0.1740, "f1_score": 0.2690, "support": 1994},
+      "REFUND_REQUEST": {"precision": 0.2534, "recall": 0.1436, "f1_score": 0.1833, "support": 787},
+      "SUBSCRIPTION_ISSUE": {"precision": 0.0000, "recall": 0.0000, "f1_score": 0.0000, "support": 16},
+      "TECHNICAL_PROBLEM": {"precision": 0.0000, "recall": 0.0000, "f1_score": 0.0000, "support": 3},
+      "SERVICE_QUALITY": {"precision": 0.0925, "recall": 0.1636, "f1_score": 0.1182, "support": 220},
+      "BILLING_PROBLEM": {"precision": 0.0397, "recall": 0.1846, "f1_score": 0.0654, "support": 65},
+      "SECURITY_CONCERN": {"precision": 0.1320, "recall": 0.1571, "f1_score": 0.1435, "support": 210},
+      "OTHER": {"precision": 0.0839, "recall": 0.1852, "f1_score": 0.1155, "support": 135}
+    },
+    "abstention_rates": {
+      "threshold_0.30": 0.8800,
+      "threshold_0.40": 0.9581,
+      "threshold_0.50": 0.9751,
+      "threshold_0.60": 0.9903,
+      "threshold_0.70": 0.9947,
+      "threshold_0.80": 0.9970
+    }
+  },
+  "data_quality": {
+    "total_raw_rows": 28942,
+    "exact_duplicate_rows": 8029,
+    "duplicate_messages": 11424,
+    "missing_messages": 3,
+    "missing_subjects": 28742,
+    "target_leakage_in_issue_column": {
+      "detected": true,
+      "matches": 25280,
+      "formula": "issue == {intent} - {message}",
+      "status_in_processed_splits": "EXCLUDED"
+    },
+    "cross_split_duplicate_leakage": {
+      "val_in_train_pct": 13.37,
+      "test_in_train_pct": 13.12,
+      "status": "FAIL_SIGNIFICANT_CONTAMINATION"
+    },
+    "class_imbalance": {
+      "majority_class": "DELIVERY_SHIPPING_PROBLEM (45.9%)",
+      "minority_classes": ["TECHNICAL_PROBLEM (0.07%)", "SUBSCRIPTION_ISSUE (0.36%)"],
+      "imbalance_ratio": "604:1"
+    }
+  },
+  "security_and_privacy": {
+    "url_detection": "PASSED",
+    "url_shortener_risk_scoring": "FAIL_SCORED_LOW_INSTEAD_OF_MEDIUM",
+    "email_detection": "PASSED",
+    "email_typosquatting": "FAIL_FALSE_POSITIVE_ON_GOOGLE_COM",
+    "prompt_injection_invariance": "PASSED_PASSIVE_DATA_HANDLING",
+    "pii_logging": "FAIL_CLEARTEXT_CREDIT_CARD_AND_TOKEN_LOGGED"
+  },
+  "performance": {
+    "startup_time_ms": 165.54,
+    "first_inference_latency_ms": 15.19,
+    "average_latency_ms": 3.64,
+    "p50_latency_ms": 3.60,
+    "p95_latency_ms": 3.98,
+    "p99_latency_ms": 4.14,
+    "memory_max_rss_mb": 580.39,
+    "concurrency": {
+      "c10": {"batch_time_ms": 33.00, "p95_ms": 32.07, "throughput_rps": 303.06},
+      "c50": {"batch_time_ms": 215.13, "p95_ms": 193.69, "throughput_rps": 232.41},
+      "c100": {"batch_time_ms": 369.66, "p95_ms": 290.85, "throughput_rps": 270.52}
+    },
+    "model_reused_singleton": true
+  },
+  "api": {
+    "endpoints_tested": [
+      "/health", "/ready", "/api/v1/models", "/api/v1/capabilities",
+      "/api/v1/classify", "/api/v1/cluster", "/api/v1/cluster/batch",
+      "/api/v1/clusters", "/api/v1/analytics/frequency", "/api/v1/urgency",
+      "/api/v1/resolution", "/api/v1/recommend", "/api/v1/url/analyze",
+      "/api/v1/email/analyze", "/api/v1/summarize", "/api/v1/analyze"
+    ],
+    "boundary_status_codes": {
+      "valid": 200,
+      "missing_fields": 422,
+      "malformed_json": 422,
+      "missing_model": 503
+    }
+  },
+  "docker": {
+    "dockerfile_exists": true,
+    "non_root_user": "app (uid/gid unprivileged)",
+    "healthcheck_defined": true,
+    "compose_configured": true,
+    "secrets_in_image": false
+  },
+  "bugs": [
+    {
+      "id": "BUG-ML-001",
+      "severity": "P0 — Critical",
+      "component": "Logging / Security & Privacy",
+      "file": "src/ml_service/core/logging.py",
+      "line": 23,
+      "reproduction": "safe_log(logger, 'test', customer_input='Card: 4111-2222-3333-4444 Token: Bearer xxx')",
+      "expected": "Card numbers, tokens, and PII must be masked with [REDACTED]",
+      "actual": "Plaintext payment card and bearer token printed directly to log output",
+      "impact": "Severe regulatory and compliance violation (PCI-DSS, GDPR, SOC2)",
+      "root_cause": "Blacklist checks dict keys only instead of value-level recursive regex masking",
+      "recommended_fix": "Implement recursive value regex masking for payment cards, tokens, and emails in safe_log",
+      "regression_test": "tests/qa/test_qa_security_and_privacy.py::test_pii_log_redaction"
+    },
+    {
+      "id": "BUG-ML-002",
+      "severity": "P1 — High",
+      "component": "Security Intelligence / Email Analyzer",
+      "file": "src/ml_service/security/email_analyzer.py",
+      "line": 35,
+      "reproduction": "EmailAnalyzer().analyze_email('support@google.com')",
+      "expected": "risk_level: SAFE, risk_score: 0.0",
+      "actual": "risk_level: HIGH, risk_score: 0.70 (flagged as typosquatting_lookalike_of_google)",
+      "impact": "Official Google domain quarantined as phishing attack, breaking support channels",
+      "root_cause": "'googl' lookalike token matches 'google.com' via substring check without authentic domain guard",
+      "recommended_fix": "Bypass lookalike check when domain matches genuine brand, and refine substring matching",
+      "regression_test": "tests/qa/test_qa_security_and_privacy.py::test_email_extraction_and_typosquatting"
+    },
+    {
+      "id": "BUG-ML-003",
+      "severity": "P1 — High",
+      "component": "Data Pipeline / Dataset Splitting",
+      "file": "src/ml_service/preprocessing/dataset.py",
+      "line": 158,
+      "reproduction": "Check text overlap between train.csv and val.csv",
+      "expected": "val ∩ train = 0% overlap",
+      "actual": "13.37% of validation texts and 13.12% of test texts are exact duplicates of train texts",
+      "impact": "Holdout splits contaminated by training samples; invalidates generalization metrics",
+      "root_cause": "Stratified row-level split without message-level deduplication on raw dataset containing 11k duplicates",
+      "recommended_fix": "Deduplicate texts or apply group/hash-based split by complaint text before train_test_split",
+      "regression_test": "tests/qa/test_qa_data_pipeline_and_leakage.py::test_dataset_splits_leakage_and_isolation"
+    },
+    {
+      "id": "BUG-ML-004",
+      "severity": "P1 — High",
+      "component": "Classification / Model Quality",
+      "file": "models/complaint_classifier_v1.joblib",
+      "line": 1,
+      "reproduction": "Evaluate model on holdout test set (scripts/evaluate.py)",
+      "expected": "Macro F1 >= 0.75, balanced accuracy across categories",
+      "actual": "Macro F1 = 0.1065, Accuracy = 16.59%. Minority classes have 0% recall. 97.5% abstention at th=0.5",
+      "impact": "Classifier fails on real-world complaints; almost 100% of complaints require manual review",
+      "root_cause": "Severe class imbalance (604:1), noisy intent mappings, and lack of balanced class weighting",
+      "recommended_fix": "Retrain with cleaned labels, balanced class weighting, calibrated thresholds, and intent alignment",
+      "regression_test": "tests/qa/test_qa_classification_and_abstention.py::test_all_11_business_categories_realistic"
+    },
+    {
+      "id": "BUG-ML-005",
+      "severity": "P1 — High",
+      "component": "Urgency & Recommendation Engine",
+      "file": "config/action_rules.yaml",
+      "line": 95,
+      "reproduction": "Send 'Someone has stolen money from my account right now' to /api/v1/analyze",
+      "expected": "Primary action: ESCALATE_TO_SECURITY_TEAM",
+      "actual": "Primary action: STANDARD_SUPPORT_RESPONSE",
+      "impact": "Active monetary fraud/theft is handled with standard automated canned response",
+      "root_cause": "Security incident rule requires security_risk: HIGH from URL/email; fallback rule is STANDARD_SUPPORT_RESPONSE",
+      "recommended_fix": "Add rule mapping urgency: CRITICAL to ESCALATE_TO_SECURITY_TEAM or HUMAN_REVIEW regardless of category",
+      "regression_test": "tests/qa/test_qa_regression_runner.py (REG-010)"
+    },
+    {
+      "id": "BUG-ML-006",
+      "severity": "P2 — Medium",
+      "component": "Urgency Engine",
+      "file": "src/ml_service/urgency/detector.py",
+      "line": 21,
+      "reproduction": "UrgencyDetector().detect('₹20,000 was deducted incorrectly and I need this resolved urgently.')",
+      "expected": "UrgencyLevel.HIGH",
+      "actual": "UrgencyLevel.LOW",
+      "impact": "High-value monetary dispute delayed because adverb 'urgently' does not match regex",
+      "root_cause": "Regex uses \\burgent\\b word boundary which does not match 'urgently', and lacks monetary error regex",
+      "recommended_fix": "Update regex to \\burgent(ly)?\\b and add patterns for currency deductions",
+      "regression_test": "tests/qa/test_qa_analytics_urgency_recommendation.py::test_urgency_risk_based_levels"
+    },
+    {
+      "id": "BUG-ML-007",
+      "severity": "P2 — Medium",
+      "component": "Security Intelligence / URL Analyzer",
+      "file": "src/ml_service/security/url_analyzer.py",
+      "line": 114,
+      "reproduction": "URLAnalyzer().analyze_url('https://bit.ly/3xYzAbc')",
+      "expected": "risk_level: MEDIUM or HIGH",
+      "actual": "risk_level: LOW (risk_score = 0.25)",
+      "impact": "Phishing attacks with masked short URLs evade quarantine and warning thresholds",
+      "root_cause": "Shortener adds only 0.25 score; threshold for MEDIUM is 0.40",
+      "recommended_fix": "Increase URL shortener penalty to 0.40 or enforce minimum MEDIUM risk for shorteners",
+      "regression_test": "tests/qa/test_qa_security_and_privacy.py::test_url_extraction_and_threat_scoring"
+    },
+    {
+      "id": "BUG-ML-008",
+      "severity": "P2 — Medium",
+      "component": "Clustering / Topic Modeling",
+      "file": "scripts/train_clusterer.py",
+      "line": 46,
+      "reproduction": "Inspect models/clusters_metadata.json",
+      "expected": "15 distinct topic clusters across diverse business categories",
+      "actual": "14 clusters generated (1 dropped); 100% of clusters have dominant_category: DELIVERY_SHIPPING_PROBLEM",
+      "impact": "Clustering dashboard offers zero visibility into payment, security, or product defect issues",
+      "root_cause": "Dominant category skewed by majority class and lack of stop-word filtering on pleasantries ('thanks', 'good')",
+      "recommended_fix": "Add domain stop-words, filter short conversational pleasantries, and rebalance clustering",
+      "regression_test": "tests/qa/test_qa_intents_and_clustering.py::test_clusters_metadata_complete"
+    },
+    {
+      "id": "BUG-ML-009",
+      "severity": "P3 — Low",
+      "component": "Quality Gate / Benchmarking Script",
+      "file": "scripts/qa_benchmarks.py",
+      "line": 111,
+      "reproduction": "Run python scripts/qa_benchmarks.py",
+      "expected": "Records real Macro F1 and Accuracy in reports/model_quality_gate.json",
+      "actual": "Records 0.0 for macro_f1 and accuracy",
+      "impact": "Quality gate displays 0.0 even when classification metrics are computed",
+      "root_cause": "Script queries m.get('macro_f1') instead of m.get('overall_metrics', {}).get('macro_f1')",
+      "recommended_fix": "Update qa_benchmarks.py to parse nested overall_metrics dictionary",
+      "regression_test": "tests/qa/test_qa_intents_and_clustering.py::test_metrics_file_has_per_class_stats"
+    },
+    {
+      "id": "BUG-ML-010",
+      "severity": "P3 — Low",
+      "component": "QA Test Suite",
+      "file": "tests/qa/test_qa_analytics_urgency_recommendation.py",
+      "line": 95,
+      "reproduction": "pytest tests/qa/test_qa_analytics_urgency_recommendation.py",
+      "expected": "QA test suite passes without schema attribute errors",
+      "actual": "AttributeError: BusinessCategory.PAYMENT_ISSUE",
+      "impact": "Test crashes prematurely due to enum name mismatch",
+      "root_cause": "Enum value is PAYMENT_TRANSACTION_ISSUE in schemas.py, but test used PAYMENT_ISSUE",
+      "recommended_fix": "Update QA test files to use canonical BusinessCategory enum identifiers",
+      "regression_test": "tests/qa/test_qa_analytics_urgency_recommendation.py::test_action_recommendations_rules"
+    }
+  ]
+}
