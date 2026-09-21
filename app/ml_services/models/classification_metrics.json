@@ -4,47 +4,47 @@
   "dataset": "data/processed/test.csv",
   "total_test_samples": 3997,
   "overall_metrics": {
-    "accuracy": 0.1944,
-    "macro_f1": 0.1144,
-    "weighted_f1": 0.2355,
-    "macro_precision": 0.1304,
-    "macro_recall": 0.1484
+    "accuracy": 0.3768,
+    "macro_f1": 0.1381,
+    "weighted_f1": 0.3487,
+    "macro_precision": 0.1598,
+    "macro_recall": 0.1339
   },
   "per_class_metrics": {
     "PAYMENT_TRANSACTION_ISSUE": {
-      "precision": 0.0514,
-      "recall": 0.1374,
-      "f1_score": 0.0748,
+      "precision": 0.08,
+      "recall": 0.0153,
+      "f1_score": 0.0256,
       "support": 131
     },
     "ACCOUNT_LOGIN_PROBLEM": {
-      "precision": 0.0065,
-      "recall": 0.037,
-      "f1_score": 0.0111,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
       "support": 27
     },
     "PRODUCT_ISSUE": {
-      "precision": 0.2212,
-      "recall": 0.1769,
-      "f1_score": 0.1966,
+      "precision": 0.2056,
+      "recall": 0.2354,
+      "f1_score": 0.2195,
       "support": 684
     },
     "DELIVERY_SHIPPING_PROBLEM": {
-      "precision": 0.568,
-      "recall": 0.2168,
-      "f1_score": 0.3138,
+      "precision": 0.497,
+      "recall": 0.6346,
+      "f1_score": 0.5574,
       "support": 1831
     },
     "REFUND_REQUEST": {
-      "precision": 0.2519,
-      "recall": 0.1733,
-      "f1_score": 0.2054,
+      "precision": 0.2485,
+      "recall": 0.1693,
+      "f1_score": 0.2014,
       "support": 750
     },
     "SUBSCRIPTION_ISSUE": {
-      "precision": 0.0092,
-      "recall": 0.0667,
-      "f1_score": 0.0161,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
       "support": 15
     },
     "TECHNICAL_PROBLEM": {
@@ -54,60 +54,60 @@
       "support": 4
     },
     "SERVICE_QUALITY": {
-      "precision": 0.0795,
-      "recall": 0.1582,
-      "f1_score": 0.1058,
+      "precision": 0.125,
+      "recall": 0.0306,
+      "f1_score": 0.0492,
       "support": 196
     },
     "BILLING_PROBLEM": {
-      "precision": 0.0213,
-      "recall": 0.2281,
-      "f1_score": 0.039,
+      "precision": 0.1622,
+      "recall": 0.1053,
+      "f1_score": 0.1277,
       "support": 57
     },
     "SECURITY_CONCERN": {
-      "precision": 0.1205,
-      "recall": 0.2022,
-      "f1_score": 0.151,
+      "precision": 0.2609,
+      "recall": 0.1311,
+      "f1_score": 0.1745,
       "support": 183
     },
     "OTHER": {
-      "precision": 0.1049,
-      "recall": 0.2353,
-      "f1_score": 0.1451,
+      "precision": 0.1782,
+      "recall": 0.1513,
+      "f1_score": 0.1636,
       "support": 119
     }
   },
   "abstention_analysis": {
     "0.3": {
-      "abstained_count": 3580,
+      "abstained_count": 2673,
       "total_count": 3997,
-      "abstention_rate": 0.8957
+      "abstention_rate": 0.6688
     },
     "0.4": {
-      "abstained_count": 3819,
+      "abstained_count": 3721,
       "total_count": 3997,
-      "abstention_rate": 0.9555
+      "abstention_rate": 0.9309
     },
     "0.5": {
-      "abstained_count": 3894,
+      "abstained_count": 3905,
       "total_count": 3997,
-      "abstention_rate": 0.9742
+      "abstention_rate": 0.977
     },
     "0.6": {
-      "abstained_count": 3944,
+      "abstained_count": 3979,
       "total_count": 3997,
-      "abstention_rate": 0.9867
+      "abstention_rate": 0.9955
     },
     "0.7": {
-      "abstained_count": 3955,
+      "abstained_count": 3991,
       "total_count": 3997,
-      "abstention_rate": 0.9895
+      "abstention_rate": 0.9985
     },
     "0.8": {
-      "abstained_count": 3961,
+      "abstained_count": 3996,
       "total_count": 3997,
-      "abstention_rate": 0.991
+      "abstention_rate": 0.9997
     }
   }
 }

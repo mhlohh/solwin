@@ -2,6 +2,11 @@ service:
   supported_languages: [en]
 classifier:
   model_name: complaint-classifier
-  version: untrained
+  version: 1.0.0
   confidence_threshold: 0.60
-  fine_grained_intent_enabled: false
+  fine_grained_intent_enabled: true
+  note: >-
+    Reflects the shipped artifacts: complaint_classifier_v1.joblib (11 categories,
+    TF-IDF + calibrated LinearSVC/LogReg) and intent_classifier_v1.joblib (65 intents).
+    The runtime source of truth is core/config.py (env-backed) + model_registry.yaml;
+    this file documents the shipped defaults.

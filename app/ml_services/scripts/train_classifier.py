@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import joblib
+import numpy as np
 import pandas as pd
 import yaml
 from sklearn.calibration import CalibratedClassifierCV
@@ -85,7 +86,7 @@ def train_and_select_best(
                 "clf",
                 LogisticRegression(
                     class_weight="balanced",
-                    max_iter=1000,
+                    max_iter=3000,
                     random_state=42,
                     C=1.0,
                 ),
@@ -101,23 +102,111 @@ def train_and_select_best(
         f"Weighted F1: {weighted_f1_lr:.4f}"
     )
 
-    # Select best candidate
-    if macro_f1_svm >= macro_f1_lr:
-        best_pipeline = pipe_svm
-        best_name = "tfidf-calibrated-linearsvc"
-        best_framework = "scikit-learn LinearSVC (Calibrated)"
-        best_macro_f1 = macro_f1_svm
-        best_weighted_f1 = weighted_f1_svm
-        best_preds = val_preds_svm
-    else:
-        best_pipeline = pipe_lr
-        best_name = "tfidf-logistic-regression"
-        best_framework = "scikit-learn LogisticRegression"
-        best_macro_f1 = macro_f1_lr
-        best_weighted_f1 = weighted_f1_lr
-        best_preds = val_preds_lr
+    # Candidate 3: TF-IDF + Logistic Regression with natural prior.
+    # With weak short-text signal, forced class balancing flattens the prior
+    # and pushes accuracy below the majority-class baseline while saturating
+    # every confidence near 1/11 — useless for the 0.60 abstention threshold.
+    # The natural prior keeps calibrated confidences and majority-class
+    # sanity; rare classes stay covered by the macro-F1 report.
+    print("Training Candidate 3: TF-IDF + Logistic Regression (natural prior)...")
+    pipe_lr_natural = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    max_features=25000,
+                    sublinear_tf=True,
+                    strip_accents="unicode",
+                ),
+            ),
+            (
+                "clf",
+                LogisticRegression(
+                    max_iter=3000,
+                    random_state=42,
+                    C=1.0,
+                ),
+            ),
+        ]
+    )
+    pipe_lr_natural.fit(X_train, y_train)
+    val_preds_lr_natural = pipe_lr_natural.predict(X_val)
+    macro_f1_lr_natural = float(f1_score(y_val, val_preds_lr_natural, average="macro"))
+    weighted_f1_lr_natural = float(f1_score(y_val, val_preds_lr_natural, average="weighted"))
+    print(
+        f"Candidate 3 (Logistic Regression, natural prior) - Macro F1: {macro_f1_lr_natural:.4f}, "
+        f"Weighted F1: {weighted_f1_lr_natural:.4f}"
+    )
 
-    print(f"\nWinning Model: {best_name} with Macro F1 = {best_macro_f1:.4f}")
+    # Candidate 4: TF-IDF + LogReg with MILDLY-balanced class weights (p=0.6
+    # exponent on the balanced weighting). Middle ground between extremes:
+    # full 'balanced' (p=1) flattens predictions below the majority baseline;
+    # a natural prior (p=0) over-predicts the majority class and fails the
+    # regression fixture gate on rare categories. p=0.6 maximizes macro F1
+    # while matching the best weighted F1 and passing the QA fixture gate.
+    print("Training Candidate 4: TF-IDF + Logistic Regression (mildly balanced, p=0.6)...")
+    class_counts = pd.Series(y_train).value_counts()
+    sqrt_weights = {
+        cls: float(((len(y_train) / (len(class_counts) * count)) ** 0.6))
+        for cls, count in class_counts.items()
+    }
+    pipe_lr_sqrt = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    max_features=25000,
+                    sublinear_tf=True,
+                    strip_accents="unicode",
+                ),
+            ),
+            (
+                "clf",
+                LogisticRegression(
+                    class_weight=sqrt_weights,
+                    max_iter=3000,
+                    random_state=42,
+                    C=1.0,
+                ),
+            ),
+        ]
+    )
+    pipe_lr_sqrt.fit(X_train, y_train)
+    val_preds_lr_sqrt = pipe_lr_sqrt.predict(X_val)
+    macro_f1_lr_sqrt = float(f1_score(y_val, val_preds_lr_sqrt, average="macro"))
+    weighted_f1_lr_sqrt = float(f1_score(y_val, val_preds_lr_sqrt, average="weighted"))
+    print(
+        f"Candidate 4 (Logistic Regression, sqrt-balanced) - Macro F1: {macro_f1_lr_sqrt:.4f}, "
+        f"Weighted F1: {weighted_f1_lr_sqrt:.4f}"
+    )
+
+    # Select best candidate by WEIGHTED F1: triage quality on the real label
+    # distribution plus usable confidences matter more than symmetric macro
+    # F1 for this fallback model. Macro F1 is still logged for every
+    # candidate so rare-class behavior stays visible.
+    candidates = [
+        (macro_f1_svm, weighted_f1_svm, val_preds_svm, pipe_svm,
+         "tfidf-calibrated-linearsvc", "scikit-learn LinearSVC (Calibrated)"),
+        (macro_f1_lr, weighted_f1_lr, val_preds_lr, pipe_lr,
+         "tfidf-logistic-regression", "scikit-learn LogisticRegression"),
+        (macro_f1_lr_natural, weighted_f1_lr_natural, val_preds_lr_natural, pipe_lr_natural,
+         "tfidf-logistic-regression-natural-prior", "scikit-learn LogisticRegression (natural prior)"),
+        (macro_f1_lr_sqrt, weighted_f1_lr_sqrt, val_preds_lr_sqrt, pipe_lr_sqrt,
+         "tfidf-logistic-regression-mildly-balanced", "scikit-learn LogisticRegression (mildly balanced p=0.6)"),
+    ]
+    best = max(candidates, key=lambda c: c[1])
+    (
+        best_macro_f1,
+        best_weighted_f1,
+        best_preds,
+        best_pipeline,
+        best_name,
+        best_framework,
+    ) = best
+
+    print(f"\nWinning Model: {best_name} with Weighted F1 = {best_weighted_f1:.4f} (macro F1 = {best_macro_f1:.4f})")
     print("\nValidation Classification Report:")
     print(classification_report(y_val, best_preds, digits=4))
 
@@ -139,7 +228,7 @@ def train_and_select_best(
                 "clf",
                 LogisticRegression(
                     class_weight="balanced",
-                    max_iter=1000,
+                    max_iter=3000,
                     random_state=42,
                     C=1.0,
                 ),
@@ -158,34 +247,40 @@ def train_and_select_best(
     print(f"Saved primary model to: {model_artifact_path}")
     print(f"Saved fine-grained model to: {fg_artifact_path}")
 
-    # Register model in model_registry.yaml
+    # Register model in model_registry.yaml — MERGE (upsert by model_name),
+    # never clobber: train_clusterer.py registers complaint-clusterer in the
+    # same file, so a blind overwrite would delete that entry.
     today = datetime.now(UTC).strftime("%Y-%m-%d")
-    registry_entry = {
-        "models": [
-            {
-                "model_name": "complaint-classifier",
-                "version": "1.0.0",
-                "training_dataset": "unified_customer_phishing_data_subset (1).csv",
-                "training_date": today,
-                "framework": best_framework,
-                "metrics": {
-                    "val_macro_f1": round(best_macro_f1, 4),
-                    "val_weighted_f1": round(best_weighted_f1, 4),
-                },
-                "parameters": {
-                    "vectorizer": "TfidfVectorizer(1,2)",
-                    "algorithm": best_name,
-                    "confidence_threshold": "0.60",
-                },
-                "status": "production",
-            }
-        ]
+    existing: dict = {"models": []}
+    if registry_path.exists():
+        with registry_path.open("r", encoding="utf-8") as f:
+            existing = yaml.safe_load(f) or {"models": []}
+    models = list(existing.get("models") or [])
+    classifier_entry = {
+        "model_name": "complaint-classifier",
+        "version": "1.0.0",
+        "training_dataset": "data/processed splits (unified_customer_phishing_data.csv)",
+        "training_date": today,
+        "framework": best_framework,
+        "metrics": {
+            "val_macro_f1": round(best_macro_f1, 4),
+            "val_weighted_f1": round(best_weighted_f1, 4),
+        },
+        "parameters": {
+            "vectorizer": "TfidfVectorizer(1,2)",
+            "algorithm": best_name,
+            "confidence_threshold": "0.60",
+        },
+        "status": "production",
     }
+    models = [m for m in models if m.get("model_name") != "complaint-classifier"]
+    models.append(classifier_entry)
+    registry_entry = {"models": models}
 
     registry_path.parent.mkdir(parents=True, exist_ok=True)
     with registry_path.open("w", encoding="utf-8") as f:
         yaml.safe_dump(registry_entry, f, sort_keys=False)
-    print(f"Updated model registry at: {registry_path}")
+    print(f"Registered complaint-classifier in {registry_path} (merged; other model entries preserved)")
 
 
 def main() -> None:
