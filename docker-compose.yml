@@ -53,6 +53,9 @@ services:
       DATA_SERVICE_URL: http://data-api:8000
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # Apply alembic migrations on boot (safe on an initialized DB; needed
+      # on a fresh Cloud SQL instance where create_all is not enough).
+      RUN_MIGRATIONS: "1"
       APP_ENV: production
       DEBUG: "false"
     ports:
