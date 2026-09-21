@@ -1,3 +1,4 @@
+import re
 from typing import List, Optional
 
 from pydantic import BaseModel, Field
@@ -10,11 +11,60 @@ from app.services.security.social_engineering import (
 from app.services.security.url_analyzer import URLAnalysisResult, URLAnalyzer
 
 
+# Executable / script file extensions dangerous as email attachments.
+# NOTE: no ".com" — it collides with domain names (www.amazon.com);
+# the legacy DOS executable meaning is dead in practice.
+DANGEROUS_ATTACHMENT_EXTENSIONS = {
+    ".exe", ".scr", ".bat", ".cmd", ".pif", ".msi",
+    ".vbs", ".vbe", ".js", ".jse", ".wsf", ".ps1",
+    ".jar", ".hta", ".lnk", ".iso", ".img",
+}
+
+# Double-extension trap: document.jpg.exe, invoice.pdf.scr, etc.
+_DOUBLE_EXT_REGEX = re.compile(
+    r"\b[\w.\-]+\.(?:(?:pdf|docx?|xlsx?|jpe?g|png|txt|html?)\.)"
+    r"(?:exe|scr|bat|cmd|pif|msi|vbs|js|jar|hta|lnk)\b",
+    re.IGNORECASE,
+)
+
+# Dataset convention: "[attachment: invoice.exe]" plus bare filenames
+_ATTACHMENT_TAG_REGEX = re.compile(r"\[attachment:\s*([^\]]+)\]", re.IGNORECASE)
+_DANGEROUS_FILE_REGEX = re.compile(
+    r"\b[\w.\-]+(?:"
+    + "|".join(ext.lstrip(".") for ext in DANGEROUS_ATTACHMENT_EXTENSIONS)
+    + r")\b",
+    re.IGNORECASE,
+)
+
+
+def detect_dangerous_attachments(text: str) -> List[str]:
+    """Find dangerous executable attachments mentioned in a message.
+
+    Catches both the dataset convention "[attachment: invoice.exe]" and
+    bare executable filenames, including double-extension traps like
+    "invoice.pdf.exe". Deterministic, no ML.
+    """
+    if not text:
+        return []
+    found = []
+    for match in _ATTACHMENT_TAG_REGEX.findall(text):
+        name = match.strip().strip("'\"")
+        if name.lower().endswith(tuple(DANGEROUS_ATTACHMENT_EXTENSIONS)):
+            found.append(name)
+    found.extend(m.group(0).strip() for m in _DOUBLE_EXT_REGEX.finditer(text))
+    for match in _DANGEROUS_FILE_REGEX.finditer(text):
+        name = match.group(0).strip()
+        if name.lower() not in [f.lower() for f in found]:
+            found.append(name)
+    return found
+
+
 class PhishingDetectionResult(BaseModel):
     threat_detected: bool = False
     threat_type: str = "NONE"  # PHISHING, SUSPICIOUS_MESSAGE, NONE
     suspicious_urls: List[str] = Field(default_factory=list)
     suspicious_emails: List[str] = Field(default_factory=list)
+    suspicious_attachments: List[str] = Field(default_factory=list)
     social_engineering: SocialEngineeringResult
     indicators: List[str] = Field(default_factory=list)
 
@@ -49,6 +99,9 @@ class PhishingDetector:
             text
         )
 
+        # 3b. Dangerous executable attachments (e.g. "[attachment: invoice.exe]")
+        suspicious_attachments = detect_dangerous_attachments(text)
+
         # 4. Synthesize Indicators
         indicators = []
 
@@ -61,6 +114,11 @@ class PhishingDetector:
                 indicators.append(
                     f"Suspicious Email [{e.email}]: {', '.join(e.signals)}"
                 )
+
+        for att in suspicious_attachments:
+            indicators.append(
+                f"Dangerous executable attachment: {att}"
+            )
 
         for sig in se_result.signals:
             indicators.append(f"Social Engineering: {sig}")
@@ -76,6 +134,7 @@ class PhishingDetector:
         has_otp = "OTP_REQUEST" in se_result.techniques
         has_urgency = "URGENCY" in se_result.techniques
         has_impersonation = "IMPERSONATION" in se_result.techniques
+        has_dangerous_attachment = len(suspicious_attachments) > 0
 
         is_phishing = False
         is_suspicious = False
@@ -94,6 +153,7 @@ class PhishingDetector:
             has_suspicious_link
             or has_suspicious_email
             or has_credentials
+            or has_dangerous_attachment
             or (has_urgency and has_impersonation)
         ):
             is_suspicious = True
@@ -113,6 +173,7 @@ class PhishingDetector:
             threat_type=threat_type,
             suspicious_urls=suspicious_urls,
             suspicious_emails=suspicious_emails,
+            suspicious_attachments=suspicious_attachments,
             social_engineering=se_result,
             indicators=indicators,
         )

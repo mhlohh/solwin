@@ -57,6 +57,26 @@ SENSITIVE_KEYWORDS = {
     "reset",
 }
 
+# Security-scam vocabulary commonly stuffed into deceptive domains
+# (e.g. secure-login-verify.com, paypal-account-recovery.net)
+DECEPTIVE_DOMAIN_WORDS = {
+    "secure",
+    "security",
+    "verify",
+    "verification",
+    "login",
+    "account",
+    "update",
+    "confirm",
+    "recovery",
+    "unlock",
+    "suspended",
+    "support",
+    "wallet",
+    "auth",
+    "signin",
+}
+
 # Leetspeak / digit substitution mapping
 LEET_MAP = {
     "0": "o",
@@ -231,6 +251,19 @@ class URLAnalyzer:
         if lookalike_reason:
             signals.append(lookalike_reason)
 
+        # 5b. Deceptive keyword-stuffed domain (brand-less variant):
+        # security/urgency vocabulary packed into the hostname itself,
+        # e.g. secure-login-verify.com, account-verify-unlock.net
+        registered_lower = extracted.registered_domain.lower()
+        domain_hits = sorted(
+            w for w in DECEPTIVE_DOMAIN_WORDS if w in registered_lower
+        )
+        if len(domain_hits) >= 2:
+            signals.append(
+                "Deceptive security-vocabulary domain: "
+                f"'{registered_lower}' (keywords: {', '.join(domain_hits)})"
+            )
+
         # 6. Sensitive credential path check
         path_lower = extracted.path.lower()
         matched_kws = [kw for kw in SENSITIVE_KEYWORDS if kw in path_lower]
@@ -253,8 +286,15 @@ class URLAnalyzer:
         if "@" in extracted.url.split("?")[0]:
             signals.append("URL contains '@' userinfo credentials/redirection trick")
 
-        # Determination: suspicious if lookalike, ip, shortener, or 2+ signals
-        suspicious = lookalike_detected or is_ip or is_shortener or len(signals) >= 2
+        # Determination: suspicious if lookalike, ip, shortener,
+        # deceptive domain vocabulary, or 2+ signals
+        suspicious = (
+            lookalike_detected
+            or is_ip
+            or is_shortener
+            or len(domain_hits) >= 2
+            or len(signals) >= 2
+        )
 
         return URLAnalysisResult(
             url=extracted.url,

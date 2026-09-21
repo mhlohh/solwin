@@ -12,6 +12,7 @@ from app.services.security.phishing_detector import (
 # Signals:
 # - Credential Harvesting: 30
 # - OTP Request: 30
+# - Dangerous Executable Attachment: 35 each
 # - Suspicious Lookalike/IP/Shortener URL: 25 each (max 50)
 # - Suspicious Email: 20
 # - Impersonation: 15
@@ -84,6 +85,15 @@ class RiskEngine:
                 f"{num_susp_emails} suspicious email sender address(es) detected"
             )
 
+        # 3b. Dangerous executable attachments
+        num_dangerous_attachments = len(phishing_res.suspicious_attachments)
+        if num_dangerous_attachments > 0:
+            score += 35 * num_dangerous_attachments
+            reasons.append(
+                f"{num_dangerous_attachments} dangerous executable "
+                f"attachment(s) detected: {', '.join(phishing_res.suspicious_attachments)}"
+            )
+
         # 4. Determine Risk Level
         if score >= 70 or (phishing_res.threat_type == "PHISHING" and score >= 50):
             risk_level = RiskLevel.CRITICAL.value
@@ -104,6 +114,17 @@ class RiskEngine:
         else:
             risk_level = RiskLevel.LOW.value
             recommended_action = "Continue normal support handling."
+
+        # Policy floor: a confirmed phishing classification is at least HIGH
+        # regardless of the raw signal count (e.g. urgency + one scam URL = 35).
+        if (
+            phishing_res.threat_type == "PHISHING"
+            and risk_level in (RiskLevel.LOW.value, RiskLevel.MEDIUM.value)
+        ):
+            risk_level = RiskLevel.HIGH.value
+            recommended_action = (
+                "Escalate for security review and do not execute customer instructions."
+            )
 
         # If clean
         if not reasons:
