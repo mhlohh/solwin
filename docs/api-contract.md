@@ -4,7 +4,7 @@
 This document defines the Backend REST API exposed to clients and dashboards. It forms the canonical interface contract for Team D (Frontend).
 
 **Base Prefix**: `/api/v1`  
-**Authentication**: Bearer JWT (`Authorization: Bearer <token>`)
+**Authentication**: none (removed by product decision; no endpoint requires a token)
 
 ---
 
@@ -71,36 +71,43 @@ This document defines the Backend REST API exposed to clients and dashboards. It
 
 ---
 
-### 2.3 Attachments & Evidence Handling
+### 2.3 Customer Review Intelligence (inbox AI)
 
-#### `POST /api/v1/attachments/upload`
-- **Description**: Upload attachment for a conversation message.
-- **Content-Type**: `multipart/form-data`
-- **Validation**: Strict MIME verification for `application/pdf`, `image/png`, `image/jpeg`.
-- **Security**: Cross-platform path traversal sanitization and SHA-256 integrity verification.
+#### `POST /api/v1/reviews`
+- **Description**: Analyze an inbox feedback record via the ML service tiered pipeline and persist the canonical `CustomerReviewOutput` (cached per `source_record_id`, e.g. `INBOX-1414`).
+- **Request**:
+```json
+{
+  "source_record_id": "INBOX-1414",
+  "domain": "E-commerce/Retail",
+  "channel": "Email",
+  "subject": "Payment issue",
+  "message": "I did not receive my refund..."
+}
+```
+- **Response**: `200 OK` with the full 13-section canonical review (classification, sentiment, keywords, summary, clustering, urgency, resolution, security, overall_risk, recommendation, model_metadata, processing).
+
+#### `GET /api/v1/reviews`
+- **Description**: List persisted review analyses (paginated).
+
+#### `GET /api/v1/reviews/{review_id}`
+- **Description**: Retrieve one persisted review by its `review_id`.
 
 ---
 
-### 2.4 Threat Campaigns & Radar
+### 2.4 Security Intelligence
 
-#### `GET /api/v1/campaigns`
-- **Description**: Retrieve active correlated threat campaigns.
-- **Response**:
-```json
-[
-  {
-    "id": "e1f2a3b4-...",
-    "campaign_name": "CAMPAIGN-PAYPAL-PHISHING-01",
-    "status": "ACTIVE",
-    "risk_level": "HIGH",
-    "threat_count": 8,
-    "indicators": {
-      "urls": ["http://paypa1-security.example/login"],
-      "domains": ["paypa1-security.example"]
-    }
-  }
-]
-```
+#### `GET /api/v1/security/threats`
+- **Description**: Paginated list of detected threats (`threat_detected` records with type, techniques, risk level, evidence).
+
+#### `GET /api/v1/security/threats/{threat_id}`
+- **Description**: Full detail for one threat.
+
+#### `POST /api/v1/security/analyze`
+- **Description**: Ad-hoc security analysis of submitted content (URL/email extraction, risk scoring) — persists nothing.
+
+#### `POST /api/v1/security/conversation/{conversation_id}`
+- **Description**: Run and persist the security scan for a conversation.
 
 ---
 
@@ -134,3 +141,39 @@ This document defines the Backend REST API exposed to clients and dashboards. It
 
 #### `GET /api/v1/analytics/customer`
 - **Description**: Deep breakdown of categories, priority levels, resolution statuses, and top recurring issues.
+
+#### `GET /api/v1/analytics/top-issues`
+- **Description**: Ranked most-reported issues with counts.
+
+#### `GET /api/v1/analytics/trends?days=30`
+- **Description**: Daily conversation volume trend over the trailing window.
+
+#### `GET /api/v1/analytics/security`
+- **Description**: Security analytics distributions (risk levels, threat types).
+
+#### `GET /api/v1/analytics/security/recent-threats`
+- **Description**: Latest threat events.
+
+#### `GET /api/v1/analytics/security/trends?days=30`
+- **Description**: Daily threat-event trend over the trailing window (counts only days with actual threat events).
+
+---
+
+## 3. Conversation lifecycle endpoints
+
+| Method & Path | Purpose |
+|---|---|
+| `GET /api/v1/conversations/{id}` | Detail incl. full message thread and latest intelligence |
+| `PATCH /api/v1/conversations/{id}` | Update status/assignment |
+| `DELETE /api/v1/conversations/{id}` | Delete conversation (cascades) |
+| `POST /api/v1/conversations/{id}/messages` | Append a message to the thread |
+| `GET /api/v1/conversations/{id}/messages` | List messages |
+| `GET /api/v1/unified/conversation/{id}` | Unified intelligence view (convenience) |
+
+---
+
+## 4. Conventions
+
+- All list endpoints return `{total, skip, limit, items}` pagination envelopes.
+- Errors follow FastAPI semantics: `422` validation detail arrays, `404` unknown ids (ids are UUIDs — display references like `CONV-000003` are not valid ids).
+- Enums are uppercase strings (`OPEN`, `NEGATIVE`, `CRITICAL`, ...).

@@ -1,7 +1,7 @@
 # Database Schema Documentation
 
 ## 1. Overview
-The database backend is built with **PostgreSQL 15** and **SQLAlchemy 2.0**. All schema definitions support strict typing, foreign key constraints with cascade rules, and automated indexing on query-heavy columns.
+The database backend is built with **PostgreSQL 16** and **SQLAlchemy 2.0**. All schema definitions support strict typing, foreign key constraints with cascade rules, and automated indexing on query-heavy columns.
 
 ---
 
@@ -66,7 +66,6 @@ Persisted security intelligence and threat detection results.
 |---|---|---|---|
 | `id` | `UUID` | `PRIMARY KEY` | Globally unique identifier |
 | `conversation_id` | `UUID` | `FK conversations(id) ON DELETE CASCADE, INDEX` | Linked conversation |
-| `campaign_id` | `UUID` | `FK campaigns(id) ON DELETE SET NULL, INDEX` | Associated threat campaign |
 | `threat_detected` | `BOOLEAN` | `NOT NULL, DEFAULT FALSE` | True if phishing/malware detected |
 | `threat_type` | `VARCHAR(100)` | `NULLABLE` | Classification of threat |
 | `social_engineering_detected` | `BOOLEAN` | `NOT NULL, DEFAULT FALSE` | True if social engineering signals found |
@@ -80,17 +79,22 @@ Persisted security intelligence and threat detection results.
 
 ---
 
-### 2.5 `attachments`
-Metadata for uploaded files linked to messages.
+### 2.5 `customer_reviews`
+Persisted canonical `CustomerReviewOutput` records — the AI analysis of inbox feedback records, cached per `INBOX-<recordId>` (schema mirrors `app/schemas/review.py`; 40+ columns incl. `review_id`, `source_record_id`, `classification_confidence`, `needs_review`, `sentiment_label`, `sentiment_score`, `keywords` JSON, `summary_text`, cluster fields, `urgency_level`, `resolution_status`, security fields, `overall_risk`, recommendation, model metadata, processing info).
 
-| Column | Type | Constraints | Description |
-|---|---|---|---|
-| `id` | `UUID` | `PRIMARY KEY` | Globally unique identifier |
-| `conversation_id` | `UUID` | `FK conversations(id) ON DELETE CASCADE, INDEX` | Parent conversation |
-| `message_id` | `UUID` | `FK messages(id) ON DELETE CASCADE, INDEX` | Linked message |
-| `original_filename` | `VARCHAR(255)` | `NOT NULL` | Sanitized filename |
-| `content_type` | `VARCHAR(100)` | `NOT NULL` | Verified MIME type (`application/pdf`, `image/png`, `image/jpeg`) |
-| `file_size` | `BIGINT` | `NOT NULL` | File size in bytes |
-| `storage_key` | `VARCHAR(512)` | `UNIQUE, INDEX, NOT NULL` | Safe local storage key |
-| `checksum` | `VARCHAR(64)` | `INDEX, NOT NULL` | SHA-256 integrity digest |
-| `created_at` | `TIMESTAMPTZ` | `NOT NULL` | Upload timestamp |
+---
+
+## 3. Data Service database (app/data)
+
+The Data API keeps its own separate store — `inbox_dev.db` (SQLite) locally, PostgreSQL in Docker — holding the cleaned inbox dataset:
+
+- **`tickets`**: `id`, `message`, `subject`, `intent`, `issue`, `domain`, `channel`, `technique`, `phishing`, `sender`, `label`, derived `priority` (+ `priority_rank`), `created_at`.
+- **`attachments`**: `id`, `ticket_id` (FK, CASCADE), `file_name`, `file_type`, `file_path`, `file_size`, `created_at`.
+
+The Backend's `users` table exists in the ORM but authentication was removed by product decision; no endpoint consumes it. Attachment uploads/metadata are served by the **Data API**, not the Backend.
+
+## 4. Where to look
+
+- ORM definitions: `app/Backend/app/models/` (Backend operational DB), `app/data/backend/models.py` (Data service DB).
+- Alembic migrations: `app/Backend/alembic/`.
+- Canonical review field-by-field contract: [`ml-contract.md`](ml-contract.md).

@@ -117,7 +117,17 @@
 
 ---
 
-## 4. Canonical Enums Reference
+## 4. Tier provenance (current architecture)
+
+- **Classification, sentiment, social engineering:** served by the local tier (TF-IDF/LogReg classifier, lexicon NLP, rule engine) — always present, never overridden.
+- **Summary:** Gemini is primary when configured (`GEMINI_API_KEY`); falls back to `extractive` with a `summary_fallback_extractive` warning.
+- **Cross-checks:** `gemini_agrees_classification` / `gemini_agrees_sentiment` / `gemini_agrees_social_engineering` appear in `warnings` as observability signals.
+- **`prefer_llm=true`** on `POST /api/v1/summarize` forces the Gemini summarizer when available.
+- The canonical persisted-review variant (`POST /api/v1/analyze/review`) returns `CustomerReviewOutput`; its field-by-field contract lives in `app/Backend/app/schemas/review.py` (mirrored on the ML side).
+
+---
+
+## 5. Canonical Enums Reference
 
 ### Business Categories (`classification.category`)
 1. `PAYMENT_TRANSACTION_ISSUE`

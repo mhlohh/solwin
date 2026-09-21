@@ -36,7 +36,7 @@ System under discussion (all paths relative to repo root):
 - Fusion logic: `app/Backend/app/services/unified_intelligence.py` → `determine_final_action()`
 - Canonical contract: `app/ml_services/src/ml_service/api/schemas.py` (ML side) and `app/Backend/app/schemas/review.py` (backend side)
 
-**Demo:** draw the 4-layer diagram (data → ML :8000 → backend :8001 → UI :5173) on a whiteboard, then show `POST /api/v1/analyze` returning both lenses in one JSON.
+**Demo:** draw the 5-layer diagram (dataset → Data API :8002 → ML :8000 → backend :8001 → UI :5173) on a whiteboard, then show `POST /api/v1/analyze` returning both lenses in one JSON.
 
 ---
 

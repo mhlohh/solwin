@@ -64,10 +64,18 @@ The deterministic mapping table is version-controlled in `app/ml_services/src/ml
   - Normalizes text for TF-IDF / embeddings.
   - **CRITICAL:** Preserves security-critical tokens, including raw URLs, IP addresses, email addresses, credential keywords ("password", "OTP", "login"), and casing where indicators are sensitive.
 
-## 7. Execution & Reproducibility
+## 7. Serving path (inbox)
+
+After cleaning, records are priority-ranked (deterministic rule cascade in `app/data/backend/priority.py`) and seeded into the Data API store. The inbox serves 20 records per page, priority-first FIFO — see the service README in `app/data/README.md` and the stats/facets endpoints that feed the frontend charts.
+
+## 8. Execution & Reproducibility
 To run data cleaning:
 ```bash
 python3 app/data/backend/clean_data.py
+```
+To re-seed the inbox DB from the cleaned CSV (also done automatically by `./run_dev.sh --reset`):
+```bash
+cd app/data && uv run --project ../Backend python -m backend.seed
 ```
 To run end-to-end dataset inference:
 ```bash

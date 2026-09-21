@@ -1,40 +1,71 @@
-# Customer Complaint Intelligence ML Service
+# ML Service — Complaint & Security Intelligence
 
-Production-grade ML and Security Intelligence Service powering AI-driven complaint classification, clustering, urgency scoring, resolution tracking, action recommendations, security threat extraction, conversation summarization, and unified end-to-end analysis.
+Production ML and security intelligence service powering complaint classification, clustering, urgency scoring, resolution tracking, action recommendations, security threat analysis, conversation summarization, and unified end-to-end analysis.
 
-## Capabilities
+**Port:** `8000` · **Stack:** Python 3.11, FastAPI, scikit-learn (pinned via `constraints.txt`), Google Gemini
 
-- **Complaint Classification (`POST /api/v1/classify`)**: Calibrated multi-class classification into 11 canonical business categories (`PAYMENT_ISSUE`, `DELIVERY_PROBLEM`, `FRAUD_DISPUTE`, `ACCOUNT_ACCESS`, etc.) and 65 fine-grained intents with abstention thresholds (`needs_review`).
-- **Topic Clustering & Frequency Analytics (`POST /api/v1/cluster`, `POST /api/v1/cluster/batch`, `GET /api/v1/clusters`, `GET /api/v1/analytics/frequency`)**: Centroid distance cluster assignment across 15 semantic clusters, keyword extraction, and thread-safe real-time frequency telemetry.
-- **Urgency Detection (`POST /api/v1/urgency`)**: Objective urgency assessment (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`) using business-logic signals (fraud indicators, account takeovers, payment failures) rather than subjective sentiment or anger.
-- **Resolution Tracking (`POST /api/v1/resolution`)**: Factual resolution status detection (`RESOLVED`, `UNRESOLVED`, `PARTIALLY_RESOLVED`, `UNKNOWN`) based on objective settlement and delivery milestones.
-- **Action Recommendations (`POST /api/v1/recommend`)**: Prioritized deterministic action recommendations (`config/action_rules.yaml`) routing complaints to relevant support, billing, fraud, or technical teams.
-- **Security Intelligence (`POST /api/v1/url/analyze`, `POST /api/v1/email/analyze`)**: Deterministic URL/domain risk scoring (IP hosts, shorteners, punycode, credential keywords) and email intelligence (brand typosquatting, disposable domains, spoof detection).
-- **Conversation Summarization (`POST /api/v1/summarize`)**: Extractive entity recognition (Order IDs, amounts, dates, emails, phones), customer issue synthesis, actions taken, and pending items, with pluggable external LLM support.
-- **Unified Master Pipeline (`POST /api/v1/analyze`)**: Single-call orchestration aggregating classification, clustering, telemetry, urgency, resolution, recommendations, security scanning, and summarization with partial failure tolerance.
-- **Operations (`GET /health`, `GET /ready`, `GET /api/v1/capabilities`, `GET /api/v1/models`)**: Liveness, readiness tied to model registry status, and capability discovery.
+## Architecture: the tiered AI pipeline
 
-## Local Development & Validation
+Local ML/NLP is the **primary** tier; Gemini is **secondary** (summary-primary + cross-check). Every request therefore gets full triage at zero API cost in milliseconds, and classification can never be unavailable.
+
+| Capability | Tier 1 — Local (always served) | Tier 2 — Gemini |
+|---|---|---|
+| Classification | TF-IDF + Logistic Regression, 11 canonical categories, `needs_review` abstention | agreement cross-check only |
+| Sentiment | lexicon NLP engine (`sentiment/local_nlp.py`: phrase rules, negation, intensifiers) | agreement cross-check only |
+| Social engineering | 9-rule regex engine (`security/social_engineering_detector.py`) | agreement cross-check only |
+| Summary | extractive summarizer (fallback) | **primary** — abstractive |
+| Urgency / resolution / recommendation / clustering / URL+email risk | deterministic engines | not used |
+
+Gemini output never overrides local results; agreement signals (`gemini_agrees_*`) are observability only. If Gemini fails, the summary degrades to extractive and everything else is unaffected.
+
+Deep dive: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — problems, solutions, per-subsystem walkthroughs with diagrams.
+
+## API surface
+
+| Method & Path | Purpose |
+|---|---|
+| `GET /health`, `GET /ready` | liveness; readiness gates on model registry |
+| `GET /api/v1/models`, `GET /api/v1/capabilities` | registry metadata, capability boundary |
+| `POST /api/v1/classify` | category + fine-grained intent + abstention |
+| `POST /api/v1/cluster`, `/cluster/batch`, `GET /clusters` | MiniBatchKMeans assignment (15 clusters) |
+| `GET /api/v1/analytics/frequency` | thread-safe frequency telemetry |
+| `POST /api/v1/urgency`, `/resolution`, `/recommend` | deterministic triage engines |
+| `POST /api/v1/url/analyze`, `/email/analyze` | URL risk (IP hosts, shorteners, punycode) and email risk (typosquat, disposable, spoof) |
+| `POST /api/v1/summarize` | extractive (default) or LLM (`prefer_llm=true`) |
+| `POST /api/v1/analyze` | unified pipeline → `UnifiedAnalysisResponse` |
+| `POST /api/v1/analyze/batch` | batch unified analysis |
+| `POST /api/v1/analyze/review` | **canonical `CustomerReviewOutput`** (13-section contract consumed by the Backend) |
+
+## Local development
 
 ```bash
 cd app/ml_services
 
-# Run all tests (71 passed)
-uv run pytest
+# Run all tests (165 passing)
+.venv/bin/python -m pytest tests/
 
-# Lint and formatting check
-uv run ruff check .
+# Lint / types
+.venv/bin/ruff check .
+.venv/bin/mypy src/
 
-# Static type checking across all 52 source files
-uv run mypy src/ scripts/ tests/
-
-# Run dev server
-uv run uvicorn ml_service.main:app --reload --port 8000
+# Dev server
+.venv/bin/uvicorn ml_service.main:app --reload --port 8000
 ```
 
-## Docker Deployment
+Configuration is environment-based (see `.env.example` at repo root): `GEMINI_API_KEY`, `GEMINI_MODEL`, `MODEL_DIR`, `MODEL_CONFIDENCE_THRESHOLD`, etc.
+
+## Models & training
+
+Artifacts live in `models/` (joblib) with metrics in `models/classification_metrics.json` and the registry in `config/model_registry.yaml`. Retrain with:
 
 ```bash
-docker compose up --build
+.venv/bin/python scripts/train_classifier.py    # 4-candidate selection by weighted F1; upserts registry
+.venv/bin/python scripts/train_clusterer.py     # MiniBatchKMeans over TF-IDF
+.venv/bin/python scripts/evaluate.py            # regenerate test-split metrics from the artifact
 ```
-The service runs with a non-root user (`app`), read-only container filesystem, tmpfs `/tmp`, and built-in container healthchecks.
+
+Train/serve consistency is guaranteed by importing the canonical cleaner from `app/data/backend/clean_data.py` — the same normalization runs in ingestion and inference.
+
+## Docker
+
+Built from `Dockerfile` with `constraints.txt` pinning the exact sklearn/numpy/scipy/joblib versions the shipped artifacts were trained under (joblib pickles are not guaranteed to load or predict identically across sklearn minor versions); base image is `python:3.11-slim` to match the training interpreter. Models are baked into the image — no runtime mounts, Cloud Run compatible. Non-root user, healthcheck included.

@@ -84,7 +84,7 @@ Gap analysis and demo pointers included. Companion to `docs/hackathon-scoring-gu
 
 | Check | Status |
 |---|---|
-| Services (ML :8000, API :8001, UI :5173) | ✅ all UP |
+| Services (ML :8000, API :8001, Data :8002, UI :5173) | ✅ all UP |
 | ML test suite | ✅ 130 passed |
 | Backend test suite | ✅ 107 passed |
 | Frontend build (tsc + vite) | ✅ clean |

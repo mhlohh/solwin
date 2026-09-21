@@ -78,9 +78,14 @@ cp .env.example .env
 | `APP_NAME` | Name of the FastAPI application | `"Solwin API"` |
 | `APP_ENV` | Environment (`development`, `testing`, `production`) | `"development"` |
 | `DEBUG` | Enable/disable debug mode and verbose SQL logs | `True` |
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@localhost:5432/solwin_db` |
-| `GEMINI_API_KEY` | Google Gemini API Key for AI capabilities | `"your-gemini-api-key-here"` |
-| `JWT_SECRET_KEY` | Secret key for JWT auth tokens | `"replace-this-with-a-secure-random-secret-key-in-production"` |
+| `DATABASE_URL` | PostgreSQL (or SQLite in dev) connection string | `postgresql://postgres:postgres@localhost:5432/solwin_db` |
+| `GEMINI_API_KEY` | Google Gemini API key for conversation intelligence | `"your-gemini-api-key-here"` |
+| `GEMINI_MODEL` | Gemini model id | `"gemini-2.5-flash"` |
+| `ML_SERVICE_URL` | ML service base URL for tiered analysis | `"http://localhost:8000"` |
+| `DATA_SERVICE_URL` | Data API base URL (dashboard dataset merge) | `"http://localhost:8002"` |
+| `RUN_MIGRATIONS` | `"1"` runs `alembic upgrade head` before API start (used in containers) | unset |
+
+> **Note:** Authentication was removed by product decision. The `users` table and `JWT_SECRET_KEY` remain as dormant scaffolding — no endpoint requires a token.
 
 ---
 

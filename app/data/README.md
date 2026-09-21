@@ -1,6 +1,8 @@
-# Customer Support & Phishing Intelligence REST API Service
+# Data Service — Ingestion & Read-Only Feedback API
 
-A containerized Python **FastAPI** service with **PostgreSQL** database, **SQLAlchemy** ORM, automated CSV data preprocessing & seeding, and file attachment handling (PDFs and Images) with strict MIME validation.
+The dataset plane of the Solwin platform: canonical cleaning of the raw customer-feedback CSV, deterministic priority assignment, bulk seeding, and a read-only FastAPI serving the 20,862-record inbox (pagination, facets, pre-aggregated stats, attachments with strict MIME validation). Runs on SQLite in dev (`inbox_dev.db`) and PostgreSQL in Docker/production.
+
+> Part of the integrated stack: this service owns **ingestion and serving** only — AI enrichment happens in the Backend/ML services (see the root `README.md` pipelines).
 
 ---
 
@@ -103,14 +105,15 @@ docker-compose down -v
 | `GET` | `/` | API status & metadata |
 | `GET` | `/health` | Health check probe |
 
-### Tickets CRUD
+### Tickets (read-only)
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/tickets` | List tickets with pagination (`skip`, `limit`) and filtering (`intent`, `search`) |
+| `GET` | `/tickets` | List tickets — pagination (`skip`, `limit`), filters (`intent`, `search`, `phishing`, `priority`); priority-first FIFO order |
 | `GET` | `/tickets/{ticket_id}` | Retrieve details of a single ticket (includes attachments) |
-| `POST` | `/tickets` | Create a new ticket record |
-| `PUT` | `/tickets/{ticket_id}` | Update an existing ticket record |
-| `DELETE` | `/tickets/{ticket_id}` | Delete a ticket and cascade delete its attachments |
+| `GET` | `/tickets/facets` | Tab/filter badges: totals, phishing count, intent list, priority counts |
+| `GET` | `/tickets/stats` | Pre-aggregated dataset stats (totals, priority mix, top intents, channel mix, phishing techniques) |
+
+> The ticket API is deliberately **read-only** at runtime; new data enters through the cleaning/seed pipeline. (The curl guide's create/update examples below are historical.)
 
 ### File Attachments
 | Method | Endpoint | Description |

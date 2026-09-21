@@ -1,111 +1,96 @@
 # Solwin — AI-Powered Customer Support Intelligence & Security Platform
 
-Solwin is an integrated enterprise customer intelligence and security platform that analyzes inbound customer communications, classifies complaints into canonical business taxonomies, detects security threats (phishing, social engineering, malicious URLs, credential harvesting), evaluates urgency, and delivers actionable recommendations for customer support operations.
-
----
-
-## Architecture Overview
-
-The system is strictly **dataset-driven** and structured into decoupled, independently testable services:
+Solwin is an integrated enterprise customer intelligence and security platform. It analyzes inbound customer communications, classifies complaints into canonical business taxonomies, detects security threats (phishing, social engineering, malicious URLs, credential harvesting), evaluates urgency, and delivers actionable recommendations for customer support operations — at dataset scale (20,862 records) and per-conversation scale.
 
 ```
-RAW DATASET (unified_customer_phishing_data.csv)
-       ↓
-DATA PREPROCESSING & CLEANING (app/data/backend)
-       ↓
-ML ORCHESTRATOR SERVICE (app/ml_services) [POST /api/v1/analyze]
-       ↓
-CANONICAL ML INTELLIGENCE RESULT (JSON)
-       ↓
-BACKEND REST API & PERSISTENCE (app/Backend) [FastAPI + SQLite/PostgreSQL]
-       ↓
-OPERATIONAL DASHBOARDS & CLIENTS
+RAW FEEDBACK DATASET (28,942 records)
+       │
+       ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Data Service (app/data)        Ingestion + read-only serving plane │
+│  clean → derive priority → seed → FastAPI :8002                     │
+└─────────────────────────────────────────────────────────────────────┘
+       │
+       ├──────────────────────────────┐
+       ▼                              ▼
+┌──────────────────────────┐   ┌─────────────────────────────────────┐
+│ ML Service (app/         │   │ Backend API (app/Backend)           │
+│ ml_services) :8000       │   │ FastAPI :8001 · PostgreSQL          │
+│ Tiered AI pipeline       │◄──┤ Unified analysis, persistence,      │
+│ (local ML/NLP primary,   │   │ dashboard/analytics aggregation     │
+│ Gemini summary-primary)  │   └─────────────────────────────────────┘
+└──────────────────────────┘                │
+       │                                    ▼
+       │                   ┌─────────────────────────────────────┐
+       └──────────────────►│ Frontend (app/frontend) :5173/8080  │
+                           │ React operator console: Dashboard,  │
+                           │ Inbox, Conversations, Threats,      │
+                           │ Security & Customer Insights        │
+                           └─────────────────────────────────────┘
 ```
 
-### Component Ownership
-- **Team A — ML Service (`app/ml_services/`):** FastText & TF-IDF classification, MiniBatchKMeans clustering, urgency scoring, resolution analysis, security intelligence (URL/email homoglyph & spoofing analysis), social engineering rule engine, and master orchestrator.
-- **Team B — Backend (`app/Backend/`):** FastAPI application, SQLAlchemy ORM models, attachment security validation, RBAC, complaint persistence, and REST endpoints.
-- **Team C — Data Service (`app/data/`):** Raw dataset integrity protection, normalization, deduplication, and split leakage controls.
-- **Team D — Frontend (`app/frontend/`):** Frontend interface contract documented in `docs/api-contract.md`.
+## The four services
 
----
+| Service | Path | Port | Role |
+|---|---|---|---|
+| **ML Service** | `app/ml_services` | 8000 | Tiered AI: local TF-IDF classifiers, NLP sentiment, rule-based social-engineering detection; Gemini for abstractive summaries + agreement cross-checks |
+| **Backend API** | `app/Backend` | 8001 | Conversation & review APIs, AI analysis persistence, dashboard/analytics aggregation, threat intelligence |
+| **Data Service** | `app/data` | 8002 | Canonical cleaning of the raw dataset, deterministic priority, read-only inbox serving (20,862 records) |
+| **Frontend** | `app/frontend` | 5173 (dev) / 8080 (nginx) | Operator console — every page wired to live APIs, no mocks |
 
-## Canonical Complaint Taxonomy
+## Main pipelines
 
-All customer communications are mapped deterministically to the **11 Canonical Public Business Categories**:
-1. `PAYMENT_TRANSACTION_ISSUE`
-2. `ACCOUNT_LOGIN_PROBLEM`
-3. `PRODUCT_ISSUE`
-4. `DELIVERY_SHIPPING_PROBLEM`
-5. `REFUND_REQUEST`
-6. `SUBSCRIPTION_ISSUE`
-7. `TECHNICAL_PROBLEM`
-8. `SERVICE_QUALITY`
-9. `BILLING_PROBLEM`
-10. `SECURITY_CONCERN`
-11. `OTHER`
+### 1. Ingestion pipeline (dataset → inbox)
 
----
+Raw CSV → canonical cleaning (`app/data/backend/clean_data.py`: NFKC normalize, trim, null/duplicate handling) → deterministic priority assignment (`priority.py` rule cascade over phishing flag, technique, intent, issue, label) → bulk seed → **Data API** serving 20-per-page priority-first FIFO. Read-only at runtime; AI enrichment lives in the Backend DB keyed by `INBOX-<recordId>`.
 
-## Quickstart & Verification
+### 2. AI inference pipeline (tiered)
 
-### 1. Run Baseline & Integration Tests
-**ML Service Tests (114 passing):**
+Every analysis runs **local ML/NLP first** — TF-IDF + Logistic Regression classification into 11 canonical categories (with abstention via `needs_review`), lexicon NLP sentiment, and a 9-rule social-engineering detector — at zero API cost in milliseconds. One structured **Gemini** call then produces the abstractive summary and three agreement cross-check signals (`gemini_agrees_classification/_sentiment/_social_engineering`) as observability. Local results are never overridden; if Gemini is unavailable, the extractive summarizer takes over and everything else still works.
+
+### 3. Conversation intelligence pipeline (Backend)
+
+Support conversations → Backend `POST /api/v1/analyze` → Gemini conversation-level intelligence (category, sentiment, urgency, resolution state, summary, security signals, recommendation) → persisted to PostgreSQL (`analyses`, `threats`) → dashboard charts and conversation triage cards.
+
+### 4. Security pipeline
+
+Deterministic analyzers first (URL risk: IP hosts, shorteners, punycode, credential keywords; email risk: brand typosquatting, disposable domains, spoofing), social-engineering rule engine, then Gemini cross-check. Threats persist to the `threats` table and feed the Threats page + Security Analytics.
+
+### 5. Serving & aggregation pipeline
+
+Frontend consumes three origins: Data API (inbox/facets/dataset stats), Backend (conversations, reviews, dashboard, analytics, threats), and — for the inbox AI card — Backend `POST /reviews`, which fans out to the ML service. Dashboard overview merges live queue metrics with dataset-scale stats from the Data API (graceful degradation if it is down).
+
+## Quick start
+
 ```bash
-cd app/ml_services
-.venv/bin/pytest -v
+# One command for the whole local stack (health-gated, logs in .freebuff/logs/)
+./run_dev.sh            # add --restart / --reset / --stop / --status as needed
+
+# or Docker (5 containers: postgres + the 4 services above)
+docker compose up --build
 ```
 
-**Backend Tests (152 passing, including End-to-End integration):**
-```bash
-cd app/Backend
-.venv/bin/pytest -v
-```
+Requires `GEMINI_API_KEY` in `.env` (see `.env.example`) for summaries and cross-checks; everything else runs fully local.
 
-### 2. Static Analysis & Type Checking
-```bash
-# ML Service
-cd app/ml_services
-.venv/bin/ruff check .
-.venv/bin/mypy src/ml_service
+## Testing
 
-# Backend
-cd app/Backend
-.venv/bin/ruff check .
-```
+| Suite | Command |
+|---|---|
+| ML service (165 tests) | `cd app/ml_services && .venv/bin/python -m pytest tests/` |
+| Backend | `cd app/Backend && uv run pytest` |
+| Data service | `cd app/data && uv run pytest` |
+| Frontend build | `cd app/frontend && npm run build` |
 
-### 3. Run Dataset Inference
-Process records from the immutable raw dataset through the ML intelligence orchestrator:
-```bash
-cd app/ml_services
-.venv/bin/python scripts/run_inference.py --input ../data/unified_customer_phishing_data\ \(1\).csv --limit 100
-```
+## Documentation map
 
-### 4. Start Services Locally
-**Start ML Service:**
-```bash
-cd app/ml_services
-.venv/bin/uvicorn ml_service.api.app:app --host 0.0.0.0 --port 8000 --reload
-```
-
-**Start Backend Service:**
-```bash
-cd app/Backend
-.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
-```
-
----
-
-## Documentation Index
-
-- [Integration Architecture](docs/integration-architecture.md)
-- [Feature Inventory & Status](docs/feature-inventory.md)
-- [ML Intelligence Contract](docs/ml-contract.md)
-- [Backend REST API Contract](docs/api-contract.md)
-- [Database Schema Specification](docs/database-schema.md)
-- [Data Pipeline & Leakage Controls](docs/data-pipeline.md)
-- [Integration Decisions Log](docs/integration-decisions.md)
-- [Pre-Integration Test Report](docs/pre-integration-test-report.md)
-- [Post-Integration Test Report](docs/post-integration-test-report.md)
-- [End-to-End Integration Test Report](docs/integration-test-report.md)
-- [Known Limitations & Quality Gate](docs/known-limitations.md)
+| Document | Contents |
+|---|---|
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System architecture, all four pipelines in depth, data contracts between services |
+| [`docs/api-contract.md`](docs/api-contract.md) | Audited Backend API surface (conversations, analysis, reviews, security, dashboard/analytics) |
+| [`docs/ml-contract.md`](docs/ml-contract.md) | ML service API contract and canonical `CustomerReviewOutput` schema |
+| [`docs/data-pipeline.md`](docs/data-pipeline.md) | Dataset profile, leakage controls, taxonomy mapping, preprocessing spec |
+| [`docs/database-schema.md`](docs/database-schema.md) | PostgreSQL schema: conversations, messages, analyses, threats, customer_reviews |
+| [`docs/hackathon-scoring-guide.md`](docs/hackathon-scoring-guide.md) | Scoring criteria → implementation map with demo pointers |
+| [`docs/known-limitations.md`](docs/known-limitations.md) | Honest constraints: dataset limits, model quality metrics |
+| Module READMEs | [`app/ml_services`](app/ml_services/README.md) · [`app/Backend`](app/Backend/README.md) · [`app/data`](app/data/README.md) · [`app/frontend`](app/frontend/README.md) |
+| Deployment | [`deploy/README-gcp.md`](deploy/README-gcp.md) (Cloud Run + Cloud SQL + Cloud Build) |

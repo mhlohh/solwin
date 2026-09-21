@@ -80,6 +80,5 @@ flowchart TD
   - Automated data cleaning, whitespace normalization, and deduplication (`clean_data.py`).
   - Automated database seeding (`seed.py`).
 
-### Team D: Frontend Contract (`app/frontend`)
-- **Status**: Absent in current checkout (`.gitkeep`).
-- **Integration**: Fully specified in `docs/api-contract.md` to consume Backend REST endpoints without modification.
+### Team D: Frontend (`app/frontend`)
+- **Status**: Fully implemented React + TypeScript + Vite operator console (Dashboard, Inbox, Conversations, Threats, Security Analytics, Customer Insights), wired to live Backend and Data APIs with no mock data paths.
