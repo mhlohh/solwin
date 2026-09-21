@@ -83,6 +83,7 @@ lerna-debug.log*
 package-lock.json.bak
 app/frontend/dist/
 app/frontend/dist-ssr/
+app/frontend/.vite/
 *.tsbuildinfo
 .eslintcache
 
